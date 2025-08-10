@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "356836688476",
+    "project_id": "jw-territories-patz",
+    "storage_bucket": "jw-territories-patz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:356836688476:android:708d1a950469b0a9d6dc99",
+        "android_client_info": {
+          "package_name": "com.miapp.territorios"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7gzO7g_Nk_xTSTba4jGJsqfzX4O6XG8w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

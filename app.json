@@ -1,24 +1,31 @@
 {
   "expo": {
     "name": "my-expo-app",
+    "scheme": "myexpoapp",
     "slug": "my-expo-app",
     "version": "1.0.0",
-
     "web": {
-      "favicon": "./assets/favicon.png"
-    },
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
 
+    },
     "experiments": {
       "tsconfigPaths": true
     },
-
-    "plugins": [],
-
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -26,9 +33,20 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
+      "config": {
+        "googleMapsApiKey": "your-google-maps-api-key-here"
+      },
       "supportsTablet": true
     },
     "android": {
+      "package": "com.miapp.territorios",
+      "googleServicesFile": "./google-services.json",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "config": {
+        "googleMaps": {
+          "apiKey": "your-google-maps-api-key-here"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
