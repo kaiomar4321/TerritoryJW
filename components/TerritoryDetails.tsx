@@ -1,16 +1,15 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef, forwardRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Territory } from '~/types/Territory';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+
 import { useHouses } from '~/hooks/useHouses';
 import { CustomButton } from 'components/CustomButton';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import TerritoryHeader from './TerritoryHeader';
 import { AddHouseForm } from './AddHouseForm';
-import { HouseList } from './HouseList';
+
 import { VisitDateSection } from './VisitDateSection';
 import { styles } from './styles';
 
@@ -33,7 +32,7 @@ const TerritoryDetails: React.FC<Props> = ({
   const [isAddingHouse, setIsAddingHouse] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const { houses, loading, addHouse, updateHouse, deleteHouse } = useHouses(territory?.id ?? null);
+  const { addHouse } = useHouses(territory?.id ?? null);
 
   const [formHouse, setFormHouse] = useState({
     address: '',
@@ -49,11 +48,6 @@ const TerritoryDetails: React.FC<Props> = ({
     visitEndDate: '',
     note: '',
   });
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ['25%', '80%'], []);
-  const handleSheetChanges = useCallback((index: number) => {
-    console.log('handleSheetChanges', index);
-  }, []);
 
   useEffect(() => {
     if (territory) {
@@ -136,10 +130,6 @@ const TerritoryDetails: React.FC<Props> = ({
     await onUpdate(territory.id, updated);
   };
 
-  const handleNoteChange = (noteText: string) => {
-    setForm((prev) => ({ ...prev, note: noteText }));
-  };
-
   const handleSaveNote = async () => {
     await onUpdate(territory.id, { note: form.note });
   };
@@ -158,7 +148,7 @@ const TerritoryDetails: React.FC<Props> = ({
             <>
               <View className="w-full flex-row items-center justify-end gap-2">
                 <TouchableOpacity
-                  className="rounded-full bg-slate-500 p-2"
+                  className="rounded-full bg-red-600 p-2"
                   onPress={handleAddHouseClick}>
                   <Ionicons name="home-outline" size={22} color="white" />
                 </TouchableOpacity>
@@ -205,13 +195,12 @@ const TerritoryDetails: React.FC<Props> = ({
                   />
                 </View>
               )}
-
             </>
           ) : (
             // Vista de agregar casa
-            <>
-              <View className="mb-4 w-full flex-row items-center justify-between">
-                <Text className="text-lg font-bold">Agregar Nueva Casa</Text>
+            <View className={styles.containerCard}>
+              <View className=" w-full flex-row items-center justify-between py-1 ">
+                <Text className="text-2xl font-bold">Agregar Nueva Casa</Text>
                 <TouchableOpacity
                   className="rounded-full bg-slate-500 p-2"
                   onPress={handleCancelAddHouse}>
@@ -219,7 +208,7 @@ const TerritoryDetails: React.FC<Props> = ({
                 </TouchableOpacity>
               </View>
               <Text className="mb-2 text-sm text-gray-600">
-                Mueve el marcador en el mapa para ajustar la ubicación
+                Manten seleccionado por 2 segundos el marcador y muevelo a la posicion deseada
               </Text>
               <AddHouseForm
                 formHouse={formHouse}
@@ -227,34 +216,29 @@ const TerritoryDetails: React.FC<Props> = ({
                 onSave={handleSaveHouse}
                 onCancel={handleCancelAddHouse}
               />
-            </>
+            </View>
           )}
         </>
       ) : (
-        <>
+        <View className={styles.containerCard}>
           <TextInput
             value={form.name}
             onChangeText={(text) => handleChange('name', text)}
             placeholder="Nombre"
-            className="my-1 rounded-md border border-gray-300 p-2"
+            className={styles.textInput}
           />
           <TextInput
             value={String(form.number)}
             onChangeText={(text) => handleChange('number', text)}
             placeholder="Numero"
-            className="my-1 rounded-md border border-gray-300 p-2"
+            className={styles.textInput}
           />
-          <TextInput
-            value={form.createdBy}
-            onChangeText={(text) => handleChange('createdBy', text)}
-            placeholder="Creado por"
-            className="my-1 rounded-md border border-gray-300 p-2"
-          />
+
           <TextInput
             value={form.color}
             onChangeText={(text) => handleChange('color', text)}
             placeholder="Color (ej: #FF0000)"
-            className="my-1 rounded-md border border-gray-300 p-2"
+            className={styles.textInput}
           />
 
           <CustomButton
@@ -270,7 +254,7 @@ const TerritoryDetails: React.FC<Props> = ({
             variant="secondary"
             className="mt-2"
           />
-        </>
+        </View>
       )}
     </View>
   );

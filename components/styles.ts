@@ -5,4 +5,5 @@ export const styles = {
   noteInput: "my-1 h-20 rounded-md border border-gray-300 p-2",
   buttonRow: "flex-row gap-2 mt-2",
   houseItem: "border-b border-gray-300 p-2 flex-row justify-between items-center",
+  textInput: "my-1 rounded-md border border-gray-300 p-2",
 };

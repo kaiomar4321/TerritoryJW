@@ -17,10 +17,11 @@ import { CustomButton } from 'components/CustomButton';
 import { Coordinate } from '~/types/Territory';
 import React, { useState } from 'react';
 import { useHouses } from '~/hooks/useHouses';
-import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import SelectedHouse from 'components/SelectedHouse';
+import FilterButtons from 'components/FilterButtons';
+import { FILTER_OPTIONS } from '~/types/FilterOption';
 
 export default function TabIndex() {
   const { location, getLocation, focusOnTerritory, mapRef } = useLocation();
@@ -34,13 +35,14 @@ export default function TabIndex() {
     selectedTerritory,
     setSelectedTerritory,
     updateTerritory,
+    setFilterDays,
   } = useTerritory();
   const { houses, updateHouse, selectedHouse, setSelectedHouse, deleteHouse } = useHouses(
     selectedTerritory?.id ?? null
   );
   const [isAddingHouse, setIsAddingHouse] = useState(false);
   const [currentHouseLocation, setCurrentHouseLocation] = useState<LatLng | null>(null);
-
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const { isAdmin, isLoading } = usePermissions();
 
   const initialRegion = {
@@ -99,6 +101,19 @@ export default function TabIndex() {
     );
   }
 
+  const handleFilterChange = (filterId: string | null) => {
+    setSelectedFilter(filterId);
+    if (!filterId) {
+      setFilterDays(null);
+      return;
+    }
+
+    const option = FILTER_OPTIONS.find((opt) => opt.id === filterId);
+    if (option) {
+      setFilterDays(option.days);
+    }
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
@@ -118,6 +133,23 @@ export default function TabIndex() {
                   handleMapPress(e, isAdmin);
                   setSelectedHouse(null);
                 }}>
+                {isEditMode &&
+                  drawingCoordinates.map((coord, index) => (
+                    <Marker key={`drawing-${index}`} coordinate={coord} pinColor="red">
+                      <View className="h-3 w-3 rounded-full border-2 border-white bg-red-500" />
+                    </Marker>
+                  ))}
+
+                {/* Mostrar el polígono mientras se dibuja */}
+                {isEditMode && drawingCoordinates.length >= 2 && (
+                  <Polygon
+                    coordinates={drawingCoordinates}
+                    strokeColor="#FF0000"
+                    fillColor="rgba(255, 0, 0, 0.2)"
+                    strokeWidth={2}
+                  />
+                )}
+
                 {territories.map((territory) => (
                   <React.Fragment key={territory.id}>
                     <Polygon
@@ -132,7 +164,7 @@ export default function TabIndex() {
                       }}
                     />
                     <Marker coordinate={getPolygonCenter(territory.coordinates)}>
-                      <View className="rounded border border-gray-300 bg-white px-1.5 py-0.5">
+                      <View className="rounded border w-full border-gray-300 bg-white px-1.5 py-0.5">
                         <Text className="text-xs font-bold">{territory.number}</Text>
                       </View>
                     </Marker>
@@ -162,20 +194,7 @@ export default function TabIndex() {
                         onPress={() => {
                           setSelectedHouse(house);
                           console.log(selectedHouse);
-                        }} // aquí seleccionamos la casa
-                      >
-                        {/* Icono simple */}
-                        <View
-                          style={{
-                            backgroundColor: 'white',
-                            borderRadius: 12,
-                            padding: 4,
-                            borderWidth: 1,
-                            borderColor: '#ccc',
-                          }}>
-                          <MaterialIcons name="home" size={18} color="#f87171" />
-                        </View>
-                      </Marker>
+                        }}></Marker>
                     ))}
 
                 {/* TU UBICACIÓN */}
@@ -190,11 +209,21 @@ export default function TabIndex() {
                 )}
               </MapView>
 
+              {!selectedTerritory && (
+                <FilterButtons
+                  selectedFilter={selectedFilter}
+                  onFilterChange={handleFilterChange}
+                />
+              )}
+
               {selectedHouse && (
                 <View className="absolute left-0 right-0 top-0  h-1/2 items-center justify-end pb-12 ">
                   <SelectedHouse
                     selectedHouse={selectedHouse}
-                    deleteHouse={() => deleteHouse(selectedHouse.id)}
+                    deleteHouse={() => {
+                      deleteHouse(selectedHouse.id);
+                      setSelectedHouse(null);
+                    }}
                     setSelectedHouse={() => setSelectedHouse(null)}
                   />
                 </View>
@@ -210,8 +239,7 @@ export default function TabIndex() {
                 onAddingHouse={handleAddingHouse}
                 currentLocation={currentHouseLocation}
               />
-
-              <View className="absolute bottom-5 right-5">
+              {/*<View className="absolute bottom-5 right-5">
                 <CustomButton
                   text="Mi Ubicación"
                   onPress={getLocation}
@@ -219,10 +247,10 @@ export default function TabIndex() {
                   className="rounded-full bg-black px-6 py-4"
                   fullWidth={false}
                 />
-              </View>
+              </View> */}
 
-              {auth.currentUser && isAdmin && (
-                <View className="absolute right-5 top-5 gap-2.5 rounded-xl bg-white/90 p-2.5 shadow-lg">
+              {auth.currentUser && isAdmin && !selectedTerritory && (
+                <View className="absolute right-5 top-32 gap-2.5 rounded-xl bg-white/90 p-2.5 shadow-lg">
                   <CustomButton
                     text={isEditMode ? 'Cancelar' : 'Definir Territorio'}
                     onPress={() => setIsEditMode(!isEditMode)}

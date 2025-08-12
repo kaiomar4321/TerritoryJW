@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { territoryService } from '../services/territoryService';
 import { auth } from '../config/firebase';
 import { Territory } from '~/types/Territory';
@@ -9,6 +9,7 @@ export const useTerritory = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [drawingCoordinates, setDrawingCoordinates] = useState<any[]>([]);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
+  const [filterDays, setFilterDays] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = territoryService.subscribeToTerritories((newTerritories) => {
@@ -58,8 +59,23 @@ export const useTerritory = () => {
     }
   };
 
+  const filteredTerritories = useMemo(() => {
+    if (!filterDays) return territories;
+
+    const now = new Date();
+    return territories.filter((territory) => {
+      if (!territory.visitEndDate) return true;
+      
+      const lastVisit = new Date(territory.visitEndDate);
+      const diffTime = Math.abs(now.getTime() - lastVisit.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays >= filterDays;
+    });
+  }, [territories, filterDays]);
+
   return {
-    territories,
+    territories: filteredTerritories,
     isEditMode,
     setIsEditMode,
     drawingCoordinates,
@@ -69,6 +85,7 @@ export const useTerritory = () => {
     selectedTerritory,
     setSelectedTerritory,
     updateTerritory,
-    onNoteChange
+    onNoteChange,
+    setFilterDays,
   };
 };
