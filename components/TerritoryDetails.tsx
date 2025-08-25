@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Territory } from '~/types/Territory';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Platform,
+  Keyboard,
+} from 'react-native';
+import { CustomTextInput } from './CustomTextInput';
 import { useHouses } from '~/hooks/useHouses';
 import { CustomButton } from 'components/CustomButton';
 
@@ -140,123 +149,145 @@ const TerritoryDetails: React.FC<Props> = ({
   if (!territory) return null;
 
   return (
-    <View className="absolute bottom-4 left-5 right-5 z-20 gap-2 overflow-hidden rounded-3xl bg-slate-200 p-4 shadow-lg">
-      {!isEditing ? (
-        <>
-          {!isAddingHouse ? (
-            // Vista normal del territorio
+    <KeyboardAvoidingView
+      className=" absolute h-full w-full  items-center  justify-end "
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View className=" z-20 w-full gap-2 overflow-hidden rounded-3xl bg-slate-200 p-4 shadow-lg">
+          {!isEditing ? (
             <>
-              <View className="w-full flex-row items-center justify-end gap-2">
-                <TouchableOpacity
-                  className="rounded-full bg-red-600 p-2"
-                  onPress={handleAddHouseClick}>
-                  <Ionicons name="home-outline" size={22} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="rounded-full bg-slate-500 p-2"
-                  onPress={() => setIsEditing(true)}>
-                  <Ionicons name="create-outline" size={22} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity className="rounded-full bg-slate-500 p-2" onPress={onClose}>
-                  <Ionicons name="close-circle-outline" size={22} color="white" />
-                </TouchableOpacity>
-              </View>
-              <TerritoryHeader territory={territory} isVisit={isVisitActive} />
-              <VisitDateSection
-                form={form}
-                isVisitActive={isVisitActive}
-                startDisabled={startDisabled}
-                endDisabled={endDisabled}
-                showStartPicker={showStartPicker}
-                showEndPicker={showEndPicker}
-                setShowStartPicker={setShowStartPicker}
-                setShowEndPicker={setShowEndPicker}
-                onStart={handleStartVisit}
-                onEnd={handleEndVisit}
-                setForm={setForm}
-              />
-              {isVisitActive && (
-                <View className=" bg-white p-2">
-                  <Text className="mb-1 mt-2.5 text-sm text-gray-600">Nota de la visita</Text>
-                  <TextInput
-                    value={form.note}
-                    onChangeText={(text) => handleChange('note', text)}
-                    placeholder="Agregar nota..."
-                    className={styles.noteInput}
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
+              {!isAddingHouse ? (
+                // Vista normal del territorio
+                <>
+                  <View className="w-full flex-row items-center justify-end gap-2">
+                    <TouchableOpacity
+                      className="rounded-full bg-red-600 p-2"
+                      onPress={handleAddHouseClick}>
+                      <Ionicons name="home-outline" size={22} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="rounded-full bg-slate-500 p-2"
+                      onPress={() => setIsEditing(true)}>
+                      <Ionicons name="create-outline" size={22} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity className="rounded-full bg-slate-500 p-2" onPress={onClose}>
+                      <Ionicons name="close-circle-outline" size={22} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                  <TerritoryHeader territory={territory} isVisit={isVisitActive} />
+                  <VisitDateSection
+                    form={form}
+                    isVisitActive={isVisitActive}
+                    startDisabled={startDisabled}
+                    endDisabled={endDisabled}
+                    showStartPicker={showStartPicker}
+                    showEndPicker={showEndPicker}
+                    setShowStartPicker={setShowStartPicker}
+                    setShowEndPicker={setShowEndPicker}
+                    onStart={handleStartVisit}
+                    onEnd={handleEndVisit}
+                    setForm={setForm}
                   />
-                  <CustomButton
-                    text="Guardar nota"
-                    onPress={handleSaveNote}
-                    variant="primary"
-                    className="mt-2 bg-cyan-500"
+                  {isVisitActive && (
+                    <View className=" bg-white p-2">
+                      <Text className="mb-1 mt-2.5 text-sm text-gray-600">Nota de la visita</Text>
+                      <TextInput
+                        value={form.note}
+                        onChangeText={(text) => handleChange('note', text)}
+                        placeholder="Agregar nota..."
+                        className={styles.noteInput}
+                        multiline
+                        numberOfLines={3}
+                        textAlignVertical="top"
+                      />
+                      <CustomButton
+                        text="Guardar nota"
+                        onPress={handleSaveNote}
+                        variant="primary"
+                        className="mt-2 bg-cyan-500"
+                      />
+                    </View>
+                  )}
+                </>
+              ) : (
+                // Vista de agregar casa
+                <View className={styles.containerCard}>
+                  <View>
+                    <View className=" w-full flex-row items-center justify-between   ">
+                      <Text className="text-2xl font-bold">Agregar Nueva Casa</Text>
+                      <TouchableOpacity
+                        className="rounded-full bg-slate-500 p-2"
+                        onPress={handleCancelAddHouse}>
+                        <Ionicons name="close-circle-outline" size={22} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text className="mb-2 text-sm  text-gray-600">
+                      Haz click en el mapa para poner la casa
+                    </Text>
+                  </View>
+                  <AddHouseForm
+                    formHouse={formHouse}
+                    onChange={handleChangeHouse}
+                    onSave={handleSaveHouse}
+                    onCancel={handleCancelAddHouse}
                   />
                 </View>
               )}
             </>
           ) : (
-            // Vista de agregar casa
             <View className={styles.containerCard}>
-              <View className=" w-full flex-row items-center justify-between py-1 ">
-                <Text className="text-2xl font-bold">Agregar Nueva Casa</Text>
+              <View className=" w-full flex-row items-center justify-between   ">
+                <Text className="text-2xl font-bold">Editar Territorio</Text>
                 <TouchableOpacity
                   className="rounded-full bg-slate-500 p-2"
-                  onPress={handleCancelAddHouse}>
+                  onPress={() => setIsEditing(false)}>
                   <Ionicons name="close-circle-outline" size={22} color="white" />
                 </TouchableOpacity>
               </View>
-              <Text className="mb-2 text-sm text-gray-600">
-                Manten seleccionado por 2 segundos el marcador y muevelo a la posicion deseada
-              </Text>
-              <AddHouseForm
-                formHouse={formHouse}
-                onChange={handleChangeHouse}
-                onSave={handleSaveHouse}
-                onCancel={handleCancelAddHouse}
+              <CustomTextInput
+                placeholder="Nombre"
+                value={form.name}
+                onChangeText={(text) => handleChange('name', text)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+              <CustomTextInput
+                placeholder="Numero"
+                value={String(form.number)}
+                onChangeText={(text) => handleChange('number', text)}
+                autoCapitalize="none"
+                keyboardType="decimal-pad"
+                autoComplete="email"
+              />
+              <CustomTextInput
+                placeholder="Color"
+                value={form.color }
+                onChangeText={(text) => handleChange('color', text)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+
+              <CustomButton
+                text="Guardar cambios"
+                onPress={handleSave}
+                variant="primary"
+                className="mt-2.5"
+              />
+
+              <CustomButton
+                text="Cancelar"
+                onPress={() => setIsEditing(false)}
+                variant="secondary"
+                className="mt-2"
               />
             </View>
           )}
-        </>
-      ) : (
-        <View className={styles.containerCard}>
-          <TextInput
-            value={form.name}
-            onChangeText={(text) => handleChange('name', text)}
-            placeholder="Nombre"
-            className={styles.textInput}
-          />
-          <TextInput
-            value={String(form.number)}
-            onChangeText={(text) => handleChange('number', text)}
-            placeholder="Numero"
-            className={styles.textInput}
-          />
-
-          <TextInput
-            value={form.color}
-            onChangeText={(text) => handleChange('color', text)}
-            placeholder="Color (ej: #FF0000)"
-            className={styles.textInput}
-          />
-
-          <CustomButton
-            text="Guardar cambios"
-            onPress={handleSave}
-            variant="primary"
-            className="mt-2.5"
-          />
-
-          <CustomButton
-            text="Cancelar"
-            onPress={() => setIsEditing(false)}
-            variant="secondary"
-            className="mt-2"
-          />
         </View>
-      )}
-    </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 TerritoryDetails.displayName = 'TerritoryDetails';

@@ -3,13 +3,16 @@ import { territoryService } from '../services/territoryService';
 import { auth } from '../config/firebase';
 import { Territory } from '~/types/Territory';
 
-
 export const useTerritory = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [drawingCoordinates, setDrawingCoordinates] = useState<any[]>([]);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
-  const [filterDays, setFilterDays] = useState<number | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDrawingCoordinates([]);
+  }, [isEditMode]);
 
   useEffect(() => {
     const unsubscribe = territoryService.subscribeToTerritories((newTerritories) => {
@@ -59,23 +62,20 @@ export const useTerritory = () => {
     }
   };
 
-  const filteredTerritories = useMemo(() => {
-    if (!filterDays) return territories;
+const filteredTerritories = useMemo(() => {
+    if (!selectedFilter) return territories;
 
-    const now = new Date();
-    return territories.filter((territory) => {
-      if (!territory.visitEndDate) return true;
-      
-      const lastVisit = new Date(territory.visitEndDate);
-      const diffTime = Math.abs(now.getTime() - lastVisit.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      return diffDays >= filterDays;
-    });
-  }, [territories, filterDays]);
+    if (selectedFilter === 'active') {
+      return territories.filter((t) => t.visitStartDate && !t.visitEndDate);
+    }
+    if (selectedFilter === 'completed') {
+      return territories.filter((t) => t.visitEndDate);
+    }
+    return territories;
+  }, [territories, selectedFilter]);
 
   return {
-    territories: filteredTerritories,
+    territories,
     isEditMode,
     setIsEditMode,
     drawingCoordinates,
@@ -86,6 +86,8 @@ export const useTerritory = () => {
     setSelectedTerritory,
     updateTerritory,
     onNoteChange,
-    setFilterDays,
+    selectedFilter,
+    setSelectedFilter,
+    filteredTerritories
   };
 };

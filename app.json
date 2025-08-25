@@ -35,7 +35,7 @@
     ],
     "ios": {
       "config": {
-        "googleMapsApiKey": "your-google-maps-api-key-here"
+        "googleMapsApiKey": "AIzaSyBptFNS1vi9_jINGrcVDC57PntXpl5MyfQ"
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.miapp.territorios",
@@ -54,7 +54,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "your-google-maps-api-key-here"
+          "apiKey": "AIzaSyBptFNS1vi9_jINGrcVDC57PntXpl5MyfQ"
         }
       },
       "adaptiveIcon": {

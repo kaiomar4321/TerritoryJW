@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LatLng } from 'react-native-maps';
 import { houseService, House } from '../services/houseService';
 import { auth } from '../config/firebase';
 
@@ -6,6 +7,8 @@ export const useHouses = (territoryId: string | null) => {
   const [houses, setHouses] = useState<House[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<House | null>(null);
+  const [isAddingHouse, setIsAddingHouse] = useState(false);
+  const [currentHouseLocation, setCurrentHouseLocation] = useState<LatLng | null>(null);
 
   useEffect(() => {
     if (!territoryId) {
@@ -64,6 +67,15 @@ export const useHouses = (territoryId: string | null) => {
     }
   };
 
+  const handleAddingHouse = (isAdding: boolean, fallbackLocation?: LatLng) => {
+    setIsAddingHouse(isAdding);
+    if (isAdding) {
+      setCurrentHouseLocation(fallbackLocation ?? null);
+    } else {
+      setCurrentHouseLocation(null);
+    }
+  };
+
   return {
     houses,
     loading,
@@ -71,6 +83,10 @@ export const useHouses = (territoryId: string | null) => {
     updateHouse,
     deleteHouse,
     selectedHouse,
-    setSelectedHouse
+    setSelectedHouse,
+    isAddingHouse,
+    currentHouseLocation,
+    handleAddingHouse,
+    setCurrentHouseLocation
   };
 };

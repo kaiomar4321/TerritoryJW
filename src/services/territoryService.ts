@@ -1,4 +1,6 @@
 import { db } from '../config/firebase';
+import useSWR from 'swr';
+import { firestoreFetcher } from './firestoreFetcher';
 import { collection, addDoc, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
 export const territoryService = {
