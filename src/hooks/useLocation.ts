@@ -29,7 +29,7 @@ export const useLocation = () => {
   };
 
 const focusOnTerritory = (territory: Territory) => {
-  if (territory.coordinates.length === 0) return;
+  if (!territory?.coordinates || territory.coordinates.length === 0) return;
 
   const lats = territory.coordinates.map((coord) => coord.latitude);
   const lngs = territory.coordinates.map((coord) => coord.longitude);

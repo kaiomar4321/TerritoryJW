@@ -63,17 +63,17 @@ export default function Login() {
   };
 
   return (
-    <View className=" flex h-full w-full items-center justify-center dark:bg-black">
+    <View className=" flex h-full w-full items-center justify-center dark:bg-black1">
       <View className=' w-3/4'>
         <View className={styles.containerCard}>
-          <Text className=" text-4xl font-extrabold">
+          <Text className=" text-4xl font-extrabold dark:text-white">
             {isLogin ? 'Inicio de Sesion' : 'Registro'}
           </Text>
           <TouchableOpacity
             className={` ${loading ? 'opacity-50' : ''}`}
             onPress={() => setIsLogin(!isLogin)}
             disabled={loading}>
-            <Text className=" font-bold text-morado">
+            <Text className=" font-bold text-morado ">
               {isLogin ? '¿No tienes cuenta? Regístrate aqui' : '¿Ya tienes cuenta? Inicia sesión'}
             </Text>
           </TouchableOpacity>

@@ -40,7 +40,7 @@ export function CustomTextInput({
         className
       )}>
       <Text className=' ps-2 text-sm text-gray-500'>{props.placeholder}</Text>
-      <View className='flex-row items-center rounded-md border  border-gray-300 bg-white  px-2 dark:bg-gray-800'>
+      <View className='flex-row items-center rounded-md border  border-gray-300 bg-white  px-2 dark:bg-black3'>
         {iconLeft && <View className="mr-2">{iconLeft}</View>}
         <TextInput
           className={clsx('flex-1 text-gray-900 dark:text-gray-100 ')}

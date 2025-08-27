@@ -1,8 +1,8 @@
 import { View, Text, ActivityIndicator } from 'react-native';
 import MapView, { Polygon, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React from 'react';
-
+import React, { useEffect } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { useLocation } from '~/hooks/useLocation';
 import { useTerritory } from '~/hooks/useTerritory';
 import { useHouses } from '~/hooks/useHouses';
@@ -17,7 +17,7 @@ import FilterButtons from 'components/FilterButtons';
 
 export default function TabIndex() {
   const { location, getLocation, focusOnTerritory, mapRef } = useLocation();
-
+  const { territoryId } = useLocalSearchParams();
   const {
     filteredTerritories,
     isEditMode,
@@ -38,13 +38,24 @@ export default function TabIndex() {
     setSelectedHouse,
     isAddingHouse,
     currentHouseLocation,
-    setCurrentHouseLocation,
+
     handleAddingHouse,
     updateHouse,
     deleteHouse,
   } = useHouses(selectedTerritory?.id ?? null);
 
   const { isAdmin, isLoading } = usePermissions();
+
+  useEffect(() => {
+    if (territoryId && filteredTerritories.length > 0) {
+      const territory = filteredTerritories.find((t) => t.id === territoryId);
+
+      if (territory && territory.coordinates?.length > 0) {
+        setSelectedTerritory(territory);
+        focusOnTerritory(territory); // solo si hay coords válidas
+      }
+    }
+  }, [territoryId, filteredTerritories]);
 
   if (isLoading) {
     return (
@@ -56,7 +67,7 @@ export default function TabIndex() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View className="flex-1 rounded-3xl border-2 border-white">
+      <View className="flex-1 rounded-3xl border-2 border-white dark:border-black overflow-hidden">
         <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
@@ -101,16 +112,18 @@ export default function TabIndex() {
                     setSelectedTerritory(territory);
                     setSelectedHouse(null);
                     focusOnTerritory(territory);
-                  }else{
+                  } else {
                     handleAddingHouse(true, e.nativeEvent.coordinate);
                   }
                 }}
               />
-              <Marker coordinate={getPolygonCenter(territory.coordinates)}>
-                <View className="rounded bg-white px-1.5 py-0.5">
-                  <Text className="text-xs font-bold">{territory.number}</Text>
-                </View>
-              </Marker>
+              {territory.coordinates?.length > 0 && (
+                <Marker coordinate={getPolygonCenter(territory.coordinates)}>
+                  <View className="rounded bg-white px-1.5 py-0.5">
+                    <Text className="text-xs font-bold">{territory.number}</Text>
+                  </View>
+                </Marker>
+              )}
             </React.Fragment>
           ))}
 
@@ -177,7 +190,7 @@ export default function TabIndex() {
 
         {/* Modo admin */}
         {isAdmin && !selectedTerritory && (
-          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white p-2 shadow-lg">
+          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white dark:bg-black1 p-2 shadow-lg">
             <SquareButton
               text={!isEditMode ? 'Nuevo Territorio' : 'Cancelar'}
               icon={!isEditMode ? 'add-circle-outline' : 'close-circle-outline'}

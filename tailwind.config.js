@@ -10,9 +10,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        morado: '#583F8C',
+        morado: '#925ffa',
         gris: '#9D9D9D',
         negro: '#292929',
+        black1: '#0C0C0C',
+        black2: '#191919',
+        black3: '#1C1D1F'
       },
     },
   },

@@ -9,13 +9,13 @@ export default function Profile() {
   const user = auth.currentUser;
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 px-5 pt-10">
+    <ScrollView className="flex-1 bg-gray-50 dark:bg-black1 px-5 pt-10">
       <Text className="mb-6 text-center text-3xl font-extrabold text-morado">
         Mi Perfil
       </Text>
 
       {/* Tarjeta de usuario */}
-      <View className="items-center rounded-2xl bg-white p-6 shadow-md">
+      <View className="items-center rounded-2xl bg-white p-6 shadow-md dark:bg-black2">
         {/* Avatar */}
         <Image
           source={{
@@ -27,28 +27,16 @@ export default function Profile() {
           className="mb-4 h-24 w-24 rounded-full border-4 border-morado"
         />
 
-        {/* Nombre */}
-        <Text className="text-xl font-semibold text-gray-800">
-          {user?.displayName || 'Sin nombre'}
-        </Text>
 
         {/* Correo */}
-        <Text className="text-sm text-gray-600">{user?.email}</Text>
+        <Text className="text-sm text-gray-600 dark:text-white">{user?.email}</Text>
 
-        {/* UID (opcional) */}
-        <Text className="mt-1 text-xs text-gray-400">{user?.uid}</Text>
+       
       </View>
 
       {/* Acciones */}
       <View className="mt-10 space-y-4">
-        <CustomButton
-          text="Editar Perfil"
-          variant="primary"
-          onPress={() => {
-            // Aquí podrías redirigir a una pantalla de edición
-            router.push('/edit-profile');
-          }}
-        />
+        
 
         <CustomButton
           text="Cerrar sesión"

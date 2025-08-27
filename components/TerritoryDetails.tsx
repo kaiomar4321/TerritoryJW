@@ -152,9 +152,9 @@ const TerritoryDetails: React.FC<Props> = ({
     <KeyboardAvoidingView
       className=" absolute h-full w-full  items-center  justify-end "
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}>
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className=" z-20 w-full gap-2 overflow-hidden rounded-3xl bg-slate-200 p-4 shadow-lg">
+        <View className=" z-20 w-full gap-2 overflow-hidden rounded-3xl bg-slate-200 dark:bg-black1 p-4 shadow-lg">
           {!isEditing ? (
             <>
               {!isAddingHouse ? (
@@ -167,11 +167,11 @@ const TerritoryDetails: React.FC<Props> = ({
                       <Ionicons name="home-outline" size={22} color="white" />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      className="rounded-full bg-slate-500 p-2"
+                      className="rounded-full bg-slate-500 dark:bg-black3 p-2"
                       onPress={() => setIsEditing(true)}>
                       <Ionicons name="create-outline" size={22} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity className="rounded-full bg-slate-500 p-2" onPress={onClose}>
+                    <TouchableOpacity className="rounded-full bg-slate-500 dark:bg-black3 p-2" onPress={onClose}>
                       <Ionicons name="close-circle-outline" size={22} color="white" />
                     </TouchableOpacity>
                   </View>
@@ -190,7 +190,7 @@ const TerritoryDetails: React.FC<Props> = ({
                     setForm={setForm}
                   />
                   {isVisitActive && (
-                    <View className=" bg-white p-2">
+                    <View className=" bg-white dark:bg-black2 p-2">
                       <Text className="mb-1 mt-2.5 text-sm text-gray-600">Nota de la visita</Text>
                       <TextInput
                         value={form.note}
@@ -215,7 +215,7 @@ const TerritoryDetails: React.FC<Props> = ({
                 <View className={styles.containerCard}>
                   <View>
                     <View className=" w-full flex-row items-center justify-between   ">
-                      <Text className="text-2xl font-bold">Agregar Nueva Casa</Text>
+                      <Text className="text-2xl font-bold dark:text-white">Agregar Nueva Casa</Text>
                       <TouchableOpacity
                         className="rounded-full bg-slate-500 p-2"
                         onPress={handleCancelAddHouse}>
@@ -238,7 +238,7 @@ const TerritoryDetails: React.FC<Props> = ({
           ) : (
             <View className={styles.containerCard}>
               <View className=" w-full flex-row items-center justify-between   ">
-                <Text className="text-2xl font-bold">Editar Territorio</Text>
+                <Text className="text-2xl font-bold dark:text-white">Editar Territorio</Text>
                 <TouchableOpacity
                   className="rounded-full bg-slate-500 p-2"
                   onPress={() => setIsEditing(false)}>
