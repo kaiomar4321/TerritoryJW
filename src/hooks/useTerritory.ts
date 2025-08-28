@@ -4,6 +4,7 @@ import { territoryService, TERRITORIES_KEY } from '../services/territoryService'
 import { territoriesFetcher } from '../services/firestoreFetcher';
 import { auth } from '../config/firebase';
 import { Territory } from '~/types/Territory';
+import { MapPressEvent } from "react-native-maps";
 
 export const useTerritory = () => {
   // Estados originales mantenidos
@@ -14,21 +15,17 @@ export const useTerritory = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   // Usar SWR para obtener territorios con territoriesFetcher
-  const { 
-    data: territories = [], 
-    error, 
+  const {
+    data: territories = [],
+    error,
     isLoading,
-    mutate: mutateTerritories
-  } = useSWR<Territory[]>(
-    TERRITORIES_KEY, 
-    territoriesFetcher, 
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      dedupingInterval: 2000,
-      errorRetryCount: 3,
-    }
-  );
+    mutate: mutateTerritories,
+  } = useSWR<Territory[]>(TERRITORIES_KEY, territoriesFetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    dedupingInterval: 2000,
+    errorRetryCount: 3,
+  });
 
   // Limpiar coordenadas de dibujo cuando cambia el modo de edición
   useEffect(() => {
@@ -83,22 +80,30 @@ export const useTerritory = () => {
   }, []);
 
   // Función para manejar press en el mapa
-  const handleMapPress = useCallback((e: { nativeEvent: { coordinate: any } }, isAdmin: boolean) => {
+ const handleMapPress = useCallback(
+  (event: MapPressEvent, isAdmin: boolean) => {
     if (isEditMode && isAdmin && auth.currentUser) {
-      setDrawingCoordinates(prev => [...prev, e.nativeEvent.coordinate]);
+      const coordinate = event.nativeEvent.coordinate; // 👈 aquí sacas la coordenada
+      if (coordinate?.latitude && coordinate?.longitude) {
+        setDrawingCoordinates((prev) => [...prev, coordinate]);
+      }
     }
-  }, [isEditMode, drawingCoordinates]);
-
+  },
+  [isEditMode]
+);
   // Función para cambiar nota
-  const onNoteChange = useCallback(async (note: string) => {
-    if (!selectedTerritory) return;
+  const onNoteChange = useCallback(
+    async (note: string) => {
+      if (!selectedTerritory) return;
 
-    try {
-      await updateTerritory(selectedTerritory.id, { note });
-    } catch (error) {
-      console.error('Error actualizando la nota del territorio:', error);
-    }
-  }, [selectedTerritory, updateTerritory]);
+      try {
+        await updateTerritory(selectedTerritory.id, { note });
+      } catch (error) {
+        console.error('Error actualizando la nota del territorio:', error);
+      }
+    },
+    [selectedTerritory, updateTerritory]
+  );
 
   // Territorios filtrados (usando memo)
   const filteredTerritories = useMemo(() => {
@@ -124,7 +129,7 @@ export const useTerritory = () => {
     filteredTerritories,
     isLoading,
     error,
-    
+
     // Estados de UI
     isEditMode,
     setIsEditMode,
@@ -135,7 +140,7 @@ export const useTerritory = () => {
     selectedFilter,
     setSelectedFilter,
     isSubscribed,
-    
+
     // Funciones
     saveTerritory,
     updateTerritory,

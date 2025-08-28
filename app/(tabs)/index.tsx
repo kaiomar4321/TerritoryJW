@@ -67,7 +67,7 @@ export default function TabIndex() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View className="flex-1 rounded-3xl border-2 border-white dark:border-black overflow-hidden">
+      <View className="flex-1 overflow-hidden rounded-3xl border-2 border-white dark:border-black">
         <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
@@ -86,18 +86,21 @@ export default function TabIndex() {
           }}>
           {/* Puntos mientras dibujas */}
           {isEditMode &&
-            drawingCoordinates.map((coord, idx) => (
-              <Marker key={`drawing-${idx}`} coordinate={coord} pinColor="red" />
-            ))}
+            drawingCoordinates
+              .filter((c) => c?.latitude && c?.longitude) // 👈 asegura datos válidos
+              .map((coord, idx) => (
+                <Marker key={`drawing-${idx}`} coordinate={coord} pinColor="red" />
+              ))}
 
-          {isEditMode && drawingCoordinates.length >= 2 && (
-            <Polygon
-              coordinates={drawingCoordinates}
-              strokeColor="#FF0000"
-              fillColor="rgba(255,0,0,0.2)"
-              strokeWidth={2}
-            />
-          )}
+          {isEditMode &&
+            drawingCoordinates.filter((c) => c?.latitude && c?.longitude).length >= 2 && (
+              <Polygon
+                coordinates={drawingCoordinates.filter((c) => c?.latitude && c?.longitude)}
+                strokeColor="#FF0000"
+                fillColor="rgba(255,0,0,0.2)"
+                strokeWidth={2}
+              />
+            )}
 
           {/* Territorios */}
           {filteredTerritories.map((territory) => (
@@ -190,12 +193,23 @@ export default function TabIndex() {
 
         {/* Modo admin */}
         {isAdmin && !selectedTerritory && (
-          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white dark:bg-black1 p-2 shadow-lg">
+          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white p-2 shadow-lg dark:bg-black1">
             <SquareButton
               text={!isEditMode ? 'Nuevo Territorio' : 'Cancelar'}
               icon={!isEditMode ? 'add-circle-outline' : 'close-circle-outline'}
               onPress={() => setIsEditMode(!isEditMode)}
             />
+
+            {isEditMode && (
+              <View className="rounded bg-black/70 p-2.5">
+                <Text className="text-center text-xs text-white">
+                  Toca el mapa para crear puntos
+                </Text>
+                <Text className="text-center text-xs text-white">
+                  Puntos: {drawingCoordinates.length}/3
+                </Text>
+              </View>
+            )}
 
             {isEditMode && drawingCoordinates.length >= 3 && (
               <SquareButton
