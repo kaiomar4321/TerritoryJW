@@ -19,13 +19,11 @@ module.exports = {
       },
     },
   },
-  darkMode: 'class',
+
   plugins: [
     function ({ addBase }) {
       addBase({
-        '.dark': {
-          'text-color': '#9D9D9D',
-        },
+        
       });
     },
   ],

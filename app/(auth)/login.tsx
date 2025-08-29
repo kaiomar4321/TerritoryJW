@@ -63,10 +63,10 @@ export default function Login() {
   };
 
   return (
-    <View className=" flex h-full w-full items-center justify-center dark:bg-black1">
+    <View className=" flex h-full w-full items-center justify-center ">
       <View className=' w-3/4'>
         <View className={styles.containerCard}>
-          <Text className=" text-4xl font-extrabold dark:text-white">
+          <Text className=" text-4xl font-extrabold ">
             {isLogin ? 'Inicio de Sesion' : 'Registro'}
           </Text>
           <TouchableOpacity

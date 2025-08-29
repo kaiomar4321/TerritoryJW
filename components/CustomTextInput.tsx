@@ -1,5 +1,5 @@
 // components/CustomTextInput.tsx
-import { View, TextInput, TextInputProps, useColorScheme, Pressable, Text } from 'react-native';
+import { View, TextInput, TextInputProps, Pressable, Text } from 'react-native';
 import { clsx } from 'clsx';
 import { ReactNode, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -22,15 +22,8 @@ export function CustomTextInput({
   secureTextEntry,
   ...props
 }: Props) {
-  const colorScheme = useColorScheme();
-  const [showPassword, setShowPassword] = useState(false);
 
-  // Detecta modo oscuro/claro para el placeholder
-  const dynamicPlaceholder = placeholderTextColor
-    ? placeholderTextColor
-    : colorScheme === 'dark'
-      ? '#9CA3AF' // gris claro
-      : '#6B7280'; // gris oscuro
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <View
@@ -40,11 +33,11 @@ export function CustomTextInput({
         className
       )}>
       <Text className=' ps-2 text-sm text-gray-500'>{props.placeholder}</Text>
-      <View className='flex-row items-center rounded-md border  border-gray-300 bg-white  px-2 dark:bg-black3'>
+      <View className='flex-row items-center rounded-md border  border-gray-300 bg-white  px-2 '>
         {iconLeft && <View className="mr-2">{iconLeft}</View>}
         <TextInput
-          className={clsx('flex-1 text-gray-900 dark:text-gray-100 ')}
-          placeholderTextColor={dynamicPlaceholder}
+          className={clsx('flex-1 text-gray-900  ')}
+          placeholderTextColor={'#6B7280'}
           secureTextEntry={isPassword && !showPassword ? true : secureTextEntry}
           {...props}
           placeholder=''
@@ -55,13 +48,13 @@ export function CustomTextInput({
               <Ionicons
                 name="eye-outline"
                 size={22}
-                color={colorScheme === 'dark' ? '#fff' : '#000'}
+                color={'#fff'}
               />
             ) : (
               <Ionicons
                 name="eye-off-outline"
                 size={22}
-                color={colorScheme === 'dark' ? '#fff' : '#000'}
+                color={'#fff'}
               />
             )}
           </Pressable>

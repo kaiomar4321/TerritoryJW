@@ -18,11 +18,11 @@ export const VisitDateSection = ({
   setForm,
 }: any) => {
   return (
-    <View className="rounded-2xl bg-white dark:bg-black2 p-3 ">
+    <View className="rounded-2xl bg-white p-3 ">
       {!isVisitActive ? (
         <View className="flex flex-row justify-between">
           <View className="w-2/3 items-center justify-center">
-            <Text className='dark:text-white'>Este territorio se completó:</Text>
+            <Text className=''>Este territorio se completó:</Text>
             <TouchableOpacity onPress={() => setShowEndPicker(true)}>
               <Text className="text-2xl font-bold text-blue-500">
                 {form.visitEndDate
@@ -59,7 +59,7 @@ export const VisitDateSection = ({
       ) : (
         <View className="flex flex-row   justify-between  ">
           <View>
-            <Text className='dark:text-white'>Este territorio está iniciado...</Text>
+            <Text className=''>Este territorio está iniciado...</Text>
             <TouchableOpacity onPress={() => setShowStartPicker(true)}>
               <Text className="text-2xl font-bold text-blue-500">
                 {form.visitStartDate

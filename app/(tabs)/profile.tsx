@@ -9,13 +9,13 @@ export default function Profile() {
   const user = auth.currentUser;
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-black1 px-5 pt-10">
+    <ScrollView className="flex-1 bg-gray-50  px-5 pt-10">
       <Text className="mb-6 text-center text-3xl font-extrabold text-morado">
         Mi Perfil
       </Text>
 
       {/* Tarjeta de usuario */}
-      <View className="items-center rounded-2xl bg-white p-6 shadow-md dark:bg-black2">
+      <View className="items-center rounded-2xl bg-white p-6 shadow-md ">
         {/* Avatar */}
         <Image
           source={{
@@ -29,7 +29,7 @@ export default function Profile() {
 
 
         {/* Correo */}
-        <Text className="text-sm text-gray-600 dark:text-white">{user?.email}</Text>
+        <Text className="text-sm text-gray-600 ">{user?.email}</Text>
 
        
       </View>

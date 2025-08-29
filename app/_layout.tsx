@@ -3,7 +3,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../src/config/firebase';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useSegments, Slot } from 'expo-router';
-import { ThemeProvider } from 'components/ThemeProvider'; // 👈 importa el provider
+
 import '../global.css';
 
 export default function RootLayout() {
@@ -42,8 +42,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider> 
+   
       <Slot /> 
-    </ThemeProvider>
+    
   );
 }

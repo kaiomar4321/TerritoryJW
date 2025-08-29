@@ -10,14 +10,14 @@ type Props = {
 
 const TerritoryHeader: React.FC<Props> = ({ territory, isVisit }) => {
   return (
-    <View className=" flex flex-col items-center justify-between rounded-2xl bg-white dark:bg-black2  p-3">
+    <View className=" flex flex-col items-center justify-between rounded-2xl bg-white   p-3">
       <View className=" flex w-full flex-row justify-between">
-        <Text className="text-xl leading-none dark:text-white">Territorio No: {territory.number}</Text>
+        <Text className="text-xl leading-none ">Territorio No: {territory.number}</Text>
       </View>
       <View className=" flex w-full flex-row">
         <View className="flex w-5/6   ">
-          <Text className=" text-3xl font-bold dark:text-white  ">{territory.name}</Text>
-          {isVisit ? <Text className='dark:text-white'>Estado: Inconcluso</Text> : <Text className='dark:text-white'>Estado: Finalizado</Text>}
+          <Text className=" text-3xl font-bold   ">{territory.name}</Text>
+          {isVisit ? <Text className=''>Estado: Inconcluso</Text> : <Text className=''>Estado: Finalizado</Text>}
         </View>
         {isVisit ? <Ionicons name="alert" size={50} color="orange" /> : <Ionicons name="checkmark-circle" size={50} color="green" />}
         

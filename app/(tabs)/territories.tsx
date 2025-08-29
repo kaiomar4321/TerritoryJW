@@ -72,11 +72,11 @@ export default function Territories() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100 dark:bg-black1">
-      <View className="h-48 flex-col items-center justify-end bg-white dark:bg-black2 px-4 py-2 shadow">
-        <Text className="text-3xl font-bold dark:text-white">Territorios</Text>
+    <SafeAreaView className="flex-1 bg-gray-100 ">
+      <View className="h-48 flex-col items-center justify-end bg-white  px-4 py-2 shadow">
+        <Text className="text-3xl font-bold ">Territorios</Text>
         <View className="w-full">
-          <Text className="font-medium text-gray-700 dark:text-white">Ordenar por:</Text>
+          <Text className="font-medium text-gray-700 ">Ordenar por:</Text>
           <View className="flex-row flex-wrap gap-3">
             {/* Incompletos */}
             <TouchableOpacity
@@ -164,7 +164,7 @@ export default function Territories() {
                   params: { territoryId: territory.id },
                 });
               }}
-              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-md dark:bg-black2">
+              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-md ">
               {/* Número */}
               <View
                 className={clsx(
@@ -176,22 +176,22 @@ export default function Territories() {
 
               {/* Info */}
               <View className="flex-1 p-3">
-                <Text className="text-lg font-semibold text-gray-800 dark:text-white">
+                <Text className="text-lg font-semibold text-gray-800 ">
                   {territory.name}
                 </Text>
 
                 {territory.visitEndDate ? (
-                  <Text className="text-sm text-gray-600 dark:text-white">
+                  <Text className="text-sm text-gray-600 ">
                     Finalizó: {formatDate(territory.visitEndDate)}
                   </Text>
                 ) : (
-                  <Text className="text-sm text-gray-600 dark:text-white">
+                  <Text className="text-sm text-gray-600 ">
                     Inició: {formatDate(territory.visitStartDate)}
                   </Text>
                 )}
 
                 {territory.note ? (
-                  <View className="mt-1 bg-slate-100 dark:bg-black3 p-1">
+                  <View className="mt-1 bg-slate-100  p-1">
                     <Text className="text-xs font-medium text-gray-500">Nota:</Text>
                     <Text className="text-sm text-gray-700">{territory.note}</Text>
                   </View>

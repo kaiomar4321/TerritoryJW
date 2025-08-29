@@ -68,7 +68,7 @@ export default function TabIndex() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View className="flex-1 overflow-hidden rounded-3xl border-2 border-white dark:border-black">
+      <View className="flex-1 overflow-hidden rounded-3xl border-2 border-white ">
         <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
@@ -195,7 +195,7 @@ export default function TabIndex() {
 
         {/* Modo admin */}
         {isAdmin && !selectedTerritory && (
-          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white p-2 shadow-lg dark:bg-black1">
+          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white p-2 shadow-lg ">
             <SquareButton
               text={!isEditMode ? 'Nuevo Territorio' : 'Cancelar'}
               icon={!isEditMode ? 'add-circle-outline' : 'close-circle-outline'}
