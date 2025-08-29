@@ -15,6 +15,7 @@ import SquareButton from 'components/Buttons/SquareButton';
 import SelectedHouse from 'components/SelectedHouse';
 import FilterButtons from 'components/FilterButtons';
 
+
 export default function TabIndex() {
   const { location, getLocation, focusOnTerritory, mapRef } = useLocation();
   const { territoryId } = useLocalSearchParams();
@@ -72,11 +73,12 @@ export default function TabIndex() {
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={{ flex: 1 }}
+          
           initialRegion={{
             latitude: 19.513628294348678,
             longitude: -101.60850390264007,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
           }}
           onPress={(e) => {
             if (!isAddingHouse) {
