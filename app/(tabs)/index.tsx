@@ -203,7 +203,7 @@ export default function TabIndex() {
             />
 
             {isEditMode && (
-              <View className="rounded bg-black/70 p-2.5">
+              <View className="rounded bg-black/70 p-2.5 absolute -left-44 top-2 w-40">
                 <Text className="text-center text-xs text-white">
                   Toca el mapa para crear puntos
                 </Text>
