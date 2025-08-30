@@ -1,14 +1,20 @@
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  SafeAreaView,
+  TouchableOpacity,
+  Pressable,
+  Modal,
+  FlatList,
+} from 'react-native';
 import React, { useState, useMemo } from 'react';
 import { useTerritory } from '~/hooks/useTerritory';
 import { clsx } from 'clsx';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import FilterTag from 'components/FilterTag';
 import { CustomTextInput } from 'components/CustomTextInput';
-
-
 
 // Función para formatear el timestamp a "Día Mes Año"
 const formatDate = (timestamp: any) => {
@@ -22,13 +28,34 @@ const formatDate = (timestamp: any) => {
   }).format(date);
 };
 
+type SortOptionType = 
+  | "oldest"
+  | "newest"
+  | "oldestCompleted"
+  | "newestCompleted"
+  | "ascNumber"
+  | "descNumber"
+  | null;
+
+const options: { label: string; value: SortOptionType }[] = [
+  { label: "Sin orden", value: null },
+  { label: "Más antiguos incompletos", value: "oldest" },
+  { label: "Más recientes incompletos", value: "newest" },
+  { label: "Más antiguos completados", value: "oldestCompleted" },
+  { label: "Más recientes completados", value: "newestCompleted" },
+  { label: "Número ascendente", value: "ascNumber" },
+  { label: "Número descendente", value: "descNumber" },
+];
+
+
 export default function Territories() {
   const { territories, isLoading, error } = useTerritory();
   const [sortOption, setSortOption] = useState<
-    'oldest' | 'newest' | 'oldestCompleted' | 'newestCompleted' | null
+    'oldest' | 'newest' | 'oldestCompleted' | 'newestCompleted' | 'ascNumber' | 'descNumber' | null
   >(null);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const [open, setOpen] = useState(false);
 
   // Filtrar y ordenar territorios
   const filteredAndSortedTerritories = useMemo(() => {
@@ -36,11 +63,11 @@ export default function Territories() {
     let filtered = territories.filter((territory) => {
       const query = searchQuery.toLowerCase().trim();
       if (!query) return true;
-      
+
       // Buscar por nombre o número
       const nameMatch = territory.name.toLowerCase().includes(query);
       const numberMatch = territory.number.toString().includes(query);
-      
+
       return nameMatch || numberMatch;
     });
 
@@ -67,6 +94,11 @@ export default function Territories() {
           ? dateA.getTime() - dateB.getTime()
           : dateB.getTime() - dateA.getTime();
       });
+    } else if (sortOption === 'ascNumber' || sortOption === 'descNumber') {
+      // Ordenar por número de territorio
+      filtered = filtered.sort((a, b) => {
+        return sortOption === 'ascNumber' ? a.number - b.number : b.number - a.number;
+      });
     }
 
     return filtered;
@@ -92,56 +124,53 @@ export default function Territories() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <View className="bg-white px-4 py-2 shadow">
-        <Text className="text-3xl font-bold text-center mb-4">Territorios</Text>
-        
+        <Text className="mb-4 text-center text-3xl font-bold">Territorios</Text>
+
         {/* Buscador */}
         <View className="mb-4">
-           <CustomTextInput
+          <CustomTextInput
             placeholder="Buscar por nombre o número..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            iconLeft={
-              <Ionicons 
-                name="search" 
-                size={20} 
-                color="#6B7280" 
-              />
-            }
+            iconLeft={<Ionicons name="search" size={20} color="#6B7280" />}
             className="mb-3"
             placeholderTextColor="#9CA3AF"
           />
         </View>
 
-        {/* Filtros de ordenamiento */}
+       
         <View className="mb-2">
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row gap-3">
-              <FilterTag
-                label="Más antiguos incompletos"
-                isActive={sortOption === 'oldest'}
-                onPress={() => setSortOption(sortOption === 'oldest' ? null : 'oldest')}
-              />
-              
-              <FilterTag
-                label="Más recientes incompletos"
-                isActive={sortOption === 'newest'}
-                onPress={() => setSortOption(sortOption === 'newest' ? null : 'newest')}
-              />
-              
-              <FilterTag
-                label="Más antiguos completados"
-                isActive={sortOption === 'oldestCompleted'}
-                onPress={() => setSortOption(sortOption === 'oldestCompleted' ? null : 'oldestCompleted')}
-              />
-              
-              <FilterTag
-                label="Más recientes completados"
-                isActive={sortOption === 'newestCompleted'}
-                onPress={() => setSortOption(sortOption === 'newestCompleted' ? null : 'newestCompleted')}
-              />
-            </View>
-          </ScrollView>
+          {/* Botón principal */}
+          <Text>Filtro:</Text>
+          <TouchableOpacity
+            onPress={() => setOpen(true)}
+            className="rounded-xl border border-gray-300 bg-white p-3">
+            <Text className="text-gray-700">
+              {options.find((o) => o.value === sortOption)?.label || 'Ordenar por...'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Modal con opciones */}
+          <Modal visible={open} transparent animationType="fade">
+            <TouchableOpacity className="flex-1 bg-black/30" onPress={() => setOpen(false)}>
+              <View className="mx-6 mt-40 rounded-xl bg-white p-4">
+                <FlatList
+                  data={options}
+                  keyExtractor={(item) => String(item.value)}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSortOption(item.value);
+                        setOpen(false);
+                      }}
+                      className="rounded-lg p-3 hover:bg-gray-100">
+                      <Text className="text-gray-800">{item.label}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
         </View>
       </View>
 
@@ -151,7 +180,8 @@ export default function Territories() {
         {searchQuery.trim() !== '' && (
           <View className="mb-3 px-2">
             <Text className="text-sm text-gray-600">
-              {filteredAndSortedTerritories.length} resultado{filteredAndSortedTerritories.length !== 1 ? 's' : ''} 
+              {filteredAndSortedTerritories.length} resultado
+              {filteredAndSortedTerritories.length !== 1 ? 's' : ''}
               {searchQuery.trim() && ` para "${searchQuery}"`}
             </Text>
           </View>
@@ -160,10 +190,9 @@ export default function Territories() {
         {filteredAndSortedTerritories.length === 0 ? (
           <View className="items-center justify-center py-10">
             <Text className="text-lg text-gray-500">
-              {searchQuery.trim() 
-                ? `No se encontraron territorios para "${searchQuery}"` 
-                : 'No hay territorios disponibles'
-              }
+              {searchQuery.trim()
+                ? `No se encontraron territorios para "${searchQuery}"`
+                : 'No hay territorios disponibles'}
             </Text>
           </View>
         ) : (
@@ -189,9 +218,7 @@ export default function Territories() {
 
               {/* Info */}
               <View className="flex-1 p-3">
-                <Text className="text-lg font-semibold text-gray-800">
-                  {territory.name}
-                </Text>
+                <Text className="text-lg font-semibold text-gray-800">{territory.name}</Text>
 
                 {territory.visitEndDate ? (
                   <Text className="text-sm text-gray-600">

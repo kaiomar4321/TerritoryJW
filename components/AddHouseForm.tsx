@@ -1,7 +1,7 @@
 // components/AddHouseForm.tsx
-import { View, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
+import { View } from 'react-native';
 import { CustomButton } from './CustomButton';
-import { styles } from './styles';
+
 import { CustomTextInput } from './CustomTextInput';
 
 export const AddHouseForm = ({ formHouse, onChange, onSave, onCancel }: any) => (
