@@ -1,45 +1,41 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LatLng } from 'react-native-maps';
-import useSWR from 'swr';
 import { houseService, House, getHousesKey } from '../services/houseService';
 import { housesFetcher } from '../services/firestoreFetcher';
 import { auth } from '../config/firebase';
+import { useOfflineSWR } from './useOfflineSWR'; // 👈 usamos el hook genérico
 
 export const useHouses = (territoryId: string | null) => {
-  // Estados originales mantenidos
   const [selectedHouse, setSelectedHouse] = useState<House | null>(null);
   const [isAddingHouse, setIsAddingHouse] = useState(false);
   const [currentHouseLocation, setCurrentHouseLocation] = useState<LatLng | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // Usar SWR para obtener houses
-  const { 
-    data: houses = [], 
-    error, 
+  const {
+    data: houses = [],
+    error,
     isLoading,
-    mutate: mutateHouses
-  } = useSWR<House[]>(
-    getHousesKey(territoryId), // null si no hay territoryId, lo que deshabilitará SWR
-    housesFetcher,
+    mutate: mutateHouses,
+  } = useOfflineSWR<House[]>(
+    territoryId ? getHousesKey(territoryId) : null, // si es null, no corre SWR
+    () => housesFetcher(getHousesKey(territoryId)!),
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       dedupingInterval: 2000,
       errorRetryCount: 3,
+      ttl: 1000 * 60 * 60 * 24, // 👈 opcional: 24h de cache
     }
   );
 
-  // Habilitar actualizaciones en tiempo real cuando hay territoryId
+  // Suscripción en tiempo real (si hay territoryId)
   useEffect(() => {
     if (!territoryId) {
       setIsSubscribed(false);
       return;
     }
 
-    const unsubscribe = houseService.subscribeToHousesByTerritory(territoryId, (newHouses) => {
-      // Los datos se actualizarán automáticamente en SWR a través del mutate en subscribeToHousesByTerritory
-    });
-
+    const unsubscribe = houseService.subscribeToHousesByTerritory(territoryId, () => {});
     setIsSubscribed(true);
 
     return () => {
@@ -48,55 +44,55 @@ export const useHouses = (territoryId: string | null) => {
     };
   }, [territoryId]);
 
-  // Función para agregar house
-  const addHouse = useCallback(async (
-    address: string,
-    reason: string = '',
-    coordinates: { latitude: number; longitude: number }
-  ) => {
-    if (!territoryId || !auth.currentUser) {
-      throw new Error('No hay territorio seleccionado o usuario no autenticado');
-    }
+  // Agregar casa
+  const addHouse = useCallback(
+    async (
+      address: string,
+      reason: string = '',
+      coordinates: { latitude: number; longitude: number }
+    ) => {
+      if (!territoryId || !auth.currentUser) {
+        throw new Error('No hay territorio seleccionado o usuario no autenticado');
+      }
 
-    try {
-      await houseService.addHouse(territoryId, address, reason, auth.currentUser.uid, coordinates);
-      // SWR se actualizará automáticamente gracias al mutate en houseService
-    } catch (error) {
-      console.error('Error adding house:', error);
-      throw error;
-    }
-  }, [territoryId]);
+      try {
+        await houseService.addHouse(
+          territoryId,
+          address,
+          reason,
+          auth.currentUser.uid,
+          coordinates
+        );
+        // SWR se actualizará con mutate dentro de houseService
+      } catch (error) {
+        console.error('Error adding house:', error);
+        throw error;
+      }
+    },
+    [territoryId]
+  );
 
-  // Función para actualizar house
-  const updateHouse = useCallback(async (
-    houseId: string,
-    updates: {
-      address?: string;
-      reason?: string;
-      coordinates?: { latitude: number; longitude: number };
-    }
-  ) => {
+  // Actualizar casa
+  const updateHouse = useCallback(async (houseId: string, updates: Partial<House>) => {
     try {
       await houseService.updateHouse(houseId, updates);
-      // SWR se actualizará automáticamente gracias al mutate en houseService
     } catch (error) {
       console.error('Error updating house:', error);
       throw error;
     }
   }, []);
 
-  // Función para eliminar house
+  // Eliminar casa
   const deleteHouse = useCallback(async (houseId: string) => {
     try {
       await houseService.deleteHouse(houseId);
-      // SWR se actualizará automáticamente gracias al mutate en houseService
     } catch (error) {
       console.error('Error deleting house:', error);
       throw error;
     }
   }, []);
 
-  // Función para manejar el estado de agregar house
+  // Control de estado al agregar casa
   const handleAddingHouse = useCallback((isAdding: boolean, fallbackLocation?: LatLng) => {
     setIsAddingHouse(isAdding);
     if (isAdding) {
@@ -106,7 +102,7 @@ export const useHouses = (territoryId: string | null) => {
     }
   }, []);
 
-  // Función para refrescar manualmente
+  // Refrescar manualmente
   const refreshHouses = useCallback(() => {
     if (territoryId) {
       return mutateHouses();
@@ -114,21 +110,18 @@ export const useHouses = (territoryId: string | null) => {
   }, [mutateHouses, territoryId]);
 
   return {
-    // Datos
     houses,
-    loading: isLoading, // Mantener la prop original para compatibilidad
-    isLoading, // Nueva prop más estándar
+    loading: isLoading, // compatibilidad
+    isLoading,
     error,
-    
-    // Estados de UI
+
     selectedHouse,
     setSelectedHouse,
     isAddingHouse,
     currentHouseLocation,
     setCurrentHouseLocation,
     isSubscribed,
-    
-    // Funciones
+
     addHouse,
     updateHouse,
     deleteHouse,

@@ -1,4 +1,4 @@
-// components/CustomTextInput.tsx
+
 import { View, TextInput, TextInputProps, Pressable, Text } from 'react-native';
 import { clsx } from 'clsx';
 import { ReactNode, useState } from 'react';

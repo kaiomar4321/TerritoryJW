@@ -9,7 +9,7 @@ export default function Profile() {
   const user = auth.currentUser;
 
   return (
-    <ScrollView className="flex-1 bg-gray-50  px-5 pt-10">
+    <ScrollView className="flex-1 bg-gray-50  px-5 py-2">
       <Text className="mb-6 text-center text-3xl font-extrabold text-morado">
         Mi Perfil
       </Text>
