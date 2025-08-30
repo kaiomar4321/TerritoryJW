@@ -10,7 +10,7 @@ import { usePermissions } from '~/hooks/usePermissions';
 
 import { getTerritoryColor, getPolygonCenter } from '~/utils/mapUtils';
 
-import TerritoryDetails from 'components/TerritoryDetails';
+import TerritoryDetails from 'components/TerritoryDetails/TerritoryDetails';
 import SquareButton from 'components/Buttons/SquareButton';
 import SelectedHouse from 'components/SelectedHouse';
 import FilterButtons from 'components/FilterButtons';
