@@ -129,11 +129,11 @@ const TerritoryDetails: React.FC<Props> = ({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <MotiView
-          className="z-20 flex flex-col w-full gap-2 overflow-hidden rounded-3xl bg-slate-200 p-4 shadow-lg"
+          className="z-20 flex flex-col w-full gap-2 overflow-hidden  bg-slate-200 p-4 shadow-lg"
           from={{ translateY: 300, opacity: 0 }}
           animate={{ translateY: 0, opacity: 1 }}
           exit={{ translateY: 300, opacity: 0 }}
-          transition={{ type: 'spring', damping: 15, stiffness: 150 }}>
+          transition={{ type: 'spring', damping: 30, stiffness: 150 }}>
           
           <AnimatePresence exitBeforeEnter>
             {!isEditing ? (

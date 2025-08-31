@@ -18,7 +18,7 @@ export const VisitDateSection = ({
   setForm,
 }: any) => {
   return (
-    <View className="rounded-2xl bg-white p-3 ">
+    <View className={styles.containerCard}>
       {!isVisitActive ? (
         <View className="flex flex-row justify-between">
           <View className="w-2/3 items-center justify-center">

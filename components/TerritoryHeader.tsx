@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import React from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Territory } from '~/types/Territory';
+import { styles } from './styles';
 
 type Props = {
   territory: Territory;
@@ -10,7 +11,7 @@ type Props = {
 
 const TerritoryHeader: React.FC<Props> = ({ territory, isVisit }) => {
   return (
-    <View className=" flex flex-col items-center justify-between rounded-2xl bg-white   p-3">
+    <View className={styles.containerCard}>
       <View className=" flex w-full flex-row justify-between">
         <Text className="text-xl leading-none ">Territorio No: {territory.number}</Text>
       </View>

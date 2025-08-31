@@ -13,7 +13,7 @@ type Props = {
 const VisitNote: React.FC<Props> = ({ note, onChangeNote, onSave }) => {
   return (
     <MotiView
-      className="bg-white p-2"
+      className={styles.containerCard}
       from={{ opacity: 0, scale: 0.8, translateY: 20 }}
       animate={{ opacity: 1, scale: 1, translateY: 0 }}
       exit={{ opacity: 0, scale: 0.8, translateY: -20 }}

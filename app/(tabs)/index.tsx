@@ -124,7 +124,7 @@ export default function TabIndex() {
               />
               {territory.coordinates?.length > 0 && (
                 <Marker coordinate={getPolygonCenter(territory.coordinates)}>
-                  <View className="rounded bg-white px-1.5 py-0.5">
+                  <View className="rounded-full bg-white px-1.5 py-0.5">
                     <Text className="text-xs font-bold">{territory.number}</Text>
                   </View>
                 </Marker>

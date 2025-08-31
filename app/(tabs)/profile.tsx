@@ -6,54 +6,68 @@ import { CustomButton } from 'components/CustomButton';
 import { CustomTextInput } from 'components/CustomTextInput';
 import { useUser } from '~/hooks/useUser';
 import { useState, useEffect } from 'react';
+import { MotiView, MotiText } from 'moti';
 
 export default function Profile() {
   const { userData, updateUser, loading } = useUser();
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({ displayName: '', photoURL: '' });
+  const [form, setForm] = useState({ displayName: '' });
 
   useEffect(() => {
     if (userData) {
       setForm({
         displayName: userData.displayName || '',
-        photoURL: userData.photoURL || '',
       });
     }
   }, [userData]);
 
-  if (loading) return <Text className="text-center mt-10">Cargando perfil...</Text>;
-  if (!userData) return <Text className="text-center mt-10 text-red-500">Usuario no encontrado</Text>;
+  if (loading) return <Text className="mt-10 text-center">Cargando perfil...</Text>;
+  if (!userData)
+    return <Text className="mt-10 text-center text-red-500">Usuario no encontrado</Text>;
 
   return (
     <ScrollView className="flex-1 bg-gray-50 px-5 py-2">
-      <Text className="mb-6 text-center text-3xl font-extrabold text-morado">Mi Perfil</Text>
+      {/* Encabezado con animación */}
+      <MotiText
+        from={{ opacity: 0, translateY: -20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 600 }}
+        className="mb-6 text-center text-3xl font-extrabold text-morado">
+        Mi Perfil
+      </MotiText>
 
       {/* Tarjeta de usuario */}
-      <View className="items-center rounded-2xl bg-white p-6 shadow-md">
+      <MotiView
+        from={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', damping: 12 }}
+        className="items-center rounded-2xl bg-white p-6 shadow-md">
         <Image
           source={{
-            uri:
-              form.photoURL ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(form.displayName || 'Usuario')}`,
+            uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              form.displayName || 'Usuario'
+            )}`,
           }}
           className="mb-4 h-24 w-24 rounded-full border-4 border-morado"
         />
-        <Text className="text-sm text-gray-600">{authService.getCurrentUser()?.email}</Text>
-      </View>
+        <Text className="text-sm font-medium text-gray-700">{userData?.email}</Text>
+        <Text className="mt-1 text-base font-semibold text-gray-900">
+          {userData?.displayName || 'Sin nombre'}
+        </Text>
+      </MotiView>
 
-      {/* Formulario de edición o botón */}
-      <View className="mt-10 space-y-4">
+      {/* Formulario / Botones */}
+      <MotiView
+        from={{ opacity: 0, translateY: 30 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 700, delay: 200 }}
+        className="mt-10 space-y-4">
         {isEditing ? (
           <>
             <CustomTextInput
               placeholder="Nombre"
               value={form.displayName}
-              onChangeText={text => setForm(prev => ({ ...prev, displayName: text }))}
-            />
-            <CustomTextInput
-              placeholder="URL de la foto"
-              value={form.photoURL}
-              onChangeText={text => setForm(prev => ({ ...prev, photoURL: text }))}
+              onChangeText={(text) => setForm((prev) => ({ ...prev, displayName: text }))}
             />
 
             <CustomButton
@@ -76,7 +90,6 @@ export default function Profile() {
                 setIsEditing(false);
                 setForm({
                   displayName: userData.displayName || '',
-                  photoURL: userData.photoURL || '',
                 });
               }}
             />
@@ -101,7 +114,7 @@ export default function Profile() {
             }
           }}
         />
-      </View>
+      </MotiView>
     </ScrollView>
   );
 }

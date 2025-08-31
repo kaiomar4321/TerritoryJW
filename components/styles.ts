@@ -1,5 +1,5 @@
 export const styles = { 
-  containerCard: "rounded-2xl bg-white p-3 shadow-lg   gap-2 w-full",
+  containerCard: "rounded-2xl bg-white p-3 shadow-lg   gap-2 w-full mt-2",
   sectionTitle: "text-lg font-bold mb-2 ",
   input: "my-1 rounded-md border border-gray-300 p-2  ",
   noteInput: "my-1 h-20 rounded-md border border-gray-300 p-2  ",
