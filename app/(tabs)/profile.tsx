@@ -15,7 +15,7 @@ export default function Profile() {
   const { userData, updateUser, loading } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({ displayName: '' });
-  const {territories} = useTerritory()
+  const { territories, allCompleted, allReady, markAllCompleted, markAllReady } = useTerritory();
 
   useEffect(() => {
     if (userData) {
@@ -117,6 +117,21 @@ export default function Profile() {
               console.error('Error al cerrar sesión:', e);
             }
           }}
+        />
+        <CustomButton
+          text="Marcar todos como Listos"
+          onPress={markAllReady}
+          variant="primary"
+          disabled={allReady} // 🔒 se desactiva si ya están listos
+          fullWidth
+          className="mb-4"
+        />
+        <CustomButton
+          text="Marcar todos como Terminados"
+          onPress={markAllCompleted}
+          variant="secondary"
+          disabled={allCompleted} // 🔒 se desactiva si ya están terminados
+          fullWidth
         />
       </MotiView>
       <TerritoryStats territories={territories} />

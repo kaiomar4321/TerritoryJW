@@ -6,6 +6,7 @@ import { Territory } from '~/types/Territory';
 import { MapPressEvent } from 'react-native-maps';
 import { useOfflineSWR } from './useOfflineSWR'; // 👈 nuevo hook
 import { getTerritoryStatus } from '~/utils/territoryStatus';
+import { territoryUtils } from '~/utils/territoryUtils';
 
 export const useTerritory = () => {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -13,6 +14,10 @@ export const useTerritory = () => {
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  
+  // Estados locales para operaciones batch
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
 
   const {
     data: territories = [],
@@ -59,6 +64,44 @@ export const useTerritory = () => {
     }
   }, [drawingCoordinates]);
 
+  const allReady = useMemo(() => 
+    territoryUtils.areAllReady(territories), 
+    [territories]
+  );
+  
+  const allCompleted = useMemo(() => 
+    territoryUtils.areAllCompleted(territories), 
+    [territories]
+  );
+
+  const markAllReady = async () => {
+    try {
+      setIsBatchLoading(true);
+      setBatchError(null);
+      await territoryService.markAllAsReady(territories);
+      await refreshTerritories();
+    } catch (error) {
+      console.error("Error al marcar como listos:", error);
+      setBatchError("No se pudieron marcar los territorios como listos");
+    } finally {
+      setIsBatchLoading(false);
+    }
+  };
+
+  const markAllCompleted = async () => {
+    try {
+      setIsBatchLoading(true);
+      setBatchError(null);
+      await territoryService.markAllAsCompleted(territories);
+      await refreshTerritories();
+    } catch (error) {
+      console.error("Error al marcar como completados:", error);
+      setBatchError("No se pudieron marcar los territorios como completados");
+    } finally {
+      setIsBatchLoading(false);
+    }
+  };
+  
   const territoriesWithStatus = useMemo(() => {
     return territories.map((t) => ({
       ...t,
@@ -68,13 +111,25 @@ export const useTerritory = () => {
 
   const updateTerritory = useCallback(async (id: string, updates: Partial<Territory>) => {
     try {
-      await territoryService.updateTerritory(id, updates);
+      await mutateTerritories(
+        async (current) => {
+          // 🔹 actualiza localmente
+          if (!current) return current;
+          const newData = current.map((t) =>
+            t.id === id ? { ...t, ...updates } : t
+          );
+          // 🔹 dispara update en Firestore
+          await territoryService.updateTerritory(id, updates);
+          return newData;
+        },
+        { revalidate: false } // 👈 evita doble request inmediato
+      );
       setSelectedTerritory(null);
     } catch (error) {
       alert('Error al actualizar el territorio.');
       console.log(error);
     }
-  }, []);
+  }, [mutateTerritories]);
 
   const handleMapPress = useCallback(
     (event: MapPressEvent, isAdmin: boolean) => {
@@ -100,7 +155,7 @@ export const useTerritory = () => {
     [selectedTerritory, updateTerritory]
   );
 
-const filteredTerritories = useMemo(() => {
+  const filteredTerritories = useMemo(() => {
     if (!selectedFilter) return territoriesWithStatus;
     return territoriesWithStatus.filter((t) => t.status === selectedFilter);
   }, [territoriesWithStatus, selectedFilter]);
@@ -112,8 +167,10 @@ const filteredTerritories = useMemo(() => {
   return {
     territories,
     filteredTerritories,
-    isLoading,
-    error,
+    isLoading, // del useOfflineSWR
+    error, // del useOfflineSWR
+    isBatchLoading, // para operaciones batch
+    batchError, // para errores de operaciones batch
     isEditMode,
     setIsEditMode,
     drawingCoordinates,
@@ -128,5 +185,9 @@ const filteredTerritories = useMemo(() => {
     handleMapPress,
     onNoteChange,
     refreshTerritories,
+    allReady,
+    allCompleted,
+    markAllReady,
+    markAllCompleted
   };
 };

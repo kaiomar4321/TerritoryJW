@@ -1,3 +1,4 @@
+//territoryStatus.ts
 import { FILTER_OPTIONS } from '~/types/FilterOption';
 import { Territory } from '~/types/Territory';
 

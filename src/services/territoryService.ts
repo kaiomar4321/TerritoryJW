@@ -2,6 +2,7 @@ import { db } from '../config/firebase';
 import { collection, addDoc, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { mutate } from 'swr';
 import { Territory } from '~/types/Territory';
+import { territoryUtils } from '~/utils/territoryUtils';
 
 export const TERRITORIES_KEY = 'firestore:territories';
 
@@ -78,4 +79,24 @@ export const territoryService = {
   revalidateTerritories() {
     return mutate(TERRITORIES_KEY);
   },
+
+  // 🔥 Aquí corregimos para que respete el formato {id, updates}
+async updateMultipleTerritories(updates: Partial<Territory>[]) {
+  const promises = updates.map((u) =>
+    this.updateTerritory(u.id!, u) // ahora u ya contiene las fechas al nivel del documento
+  );
+  return Promise.all(promises);
+},
+
+// Marcar todos como listos
+async markAllAsReady(territories: Territory[]) {
+  const updates = territoryUtils.prepareReadyUpdates(territories);
+  return this.updateMultipleTerritories(updates);
+},
+
+// Marcar todos como completados
+async markAllAsCompleted(territories: Territory[]) {
+  const updates = territoryUtils.prepareCompletedUpdates(territories);
+  return this.updateMultipleTerritories(updates);
+},
 };

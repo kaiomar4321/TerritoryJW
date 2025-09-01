@@ -11,7 +11,7 @@ export type Territory = {
   color: string;
   createdAt: any,
   number: number,
-  visitStartDate?: string; 
-  visitEndDate?: string;
+  visitStartDate?: string | null; 
+  visitEndDate?: string | null;
   note?: string;
 };
