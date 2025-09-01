@@ -1,4 +1,4 @@
-// FilterOptions.ts
+// FilterOption.ts
 export const FILTER_OPTIONS = [
   {
     id: "ready",

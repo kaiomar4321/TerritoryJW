@@ -1,102 +1,113 @@
-import { db } from '../config/firebase';
-import { collection, addDoc, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { mutate } from 'swr';
-import { Territory } from '~/types/Territory';
-import { territoryUtils } from '~/utils/territoryUtils';
+import { db } from "../config/firebase";
+import { collection, addDoc, query, onSnapshot, doc, updateDoc, getDocs, setDoc } from "firebase/firestore";
+import { mutate } from "swr";
+import { Territory } from "~/types/Territory";
+import { territoryUtils } from "~/utils/territoryUtils";
+import { localDB } from "./localDB";
+import NetInfo from "@react-native-community/netinfo";
 
-export const TERRITORIES_KEY = 'firestore:territories';
+export const TERRITORIES_KEY = "firestore:territories";
 
 export const territoryService = {
   async saveTerritory(coordinates: any[], userId: string) {
     if (!coordinates || coordinates.length < 3) {
-      throw new Error('Se necesitan al menos 3 puntos para crear un territorio');
+      throw new Error("Se necesitan al menos 3 puntos para crear un territorio");
     }
 
-    try {
-      const newTerritory = {
-        coordinates,
-        createdBy: userId,
-        createdAt: new Date(),
-        color: 'rgba(255, 0, 0, 0.8)',
-        name: 'Territorio Nuevo',
-        number: 0,
-      };
+    const newTerritory: Territory = {
+      id: Date.now().toString(), // id temporal si offline
+      coordinates,
+      createdBy: userId,
+      createdAt: new Date().toISOString(),
+      color: "rgba(255, 0, 0, 0.8)",
+      name: "Territorio Nuevo",
+      number: 0,
+      lastModified: Date.now(),
+      synced: false,
+    };
 
-      const docRef = await addDoc(collection(db, 'territories'), newTerritory);
+    // guardar en local primero
+    const local = await localDB.getTerritories();
+    await localDB.saveTerritories([...local, newTerritory]);
+    mutate(TERRITORIES_KEY);
 
-      // Invalidar y refrescar el caché de SWR
+    // si hay internet, subir a Firestore
+    const state = await NetInfo.fetch();
+    if (state.isConnected) {
+      const docRef = await addDoc(collection(db, "territories"), newTerritory);
+      // reemplazar id temporal por id real
+      const updated = { ...newTerritory, id: docRef.id, synced: true };
+      await localDB.saveTerritories([...local, updated]);
       mutate(TERRITORIES_KEY);
-
-      return { id: docRef.id, ...newTerritory };
-    } catch (error) {
-      console.error('Error saving territory:', error);
-      throw error;
+      return updated;
     }
+
+    return newTerritory;
   },
 
   async updateTerritory(id: string, updates: Partial<Territory>) {
-    try {
-      const territoryRef = doc(db, 'territories', id);
-      const updateData = {
-        ...updates,
-        updatedAt: new Date(),
-      };
+    const local = await localDB.getTerritories();
+    const updatedAt = Date.now();
 
-      await updateDoc(territoryRef, updateData);
+    const newData = local.map((t) =>
+      t.id === id ? { ...t, ...updates, lastModified: updatedAt, synced: false } : t
+    );
 
-      // Invalidar y refrescar el caché de SWR
+    await localDB.saveTerritories(newData);
+    mutate(TERRITORIES_KEY);
+
+    const state = await NetInfo.fetch();
+    if (state.isConnected) {
+      const territoryRef = doc(db, "territories", id);
+      await updateDoc(territoryRef, { ...updates, lastModified: updatedAt });
+      const syncedData = newData.map((t) =>
+        t.id === id ? { ...t, synced: true } : t
+      );
+      await localDB.saveTerritories(syncedData);
       mutate(TERRITORIES_KEY);
-
-      return updateData;
-    } catch (error) {
-      console.error('Error updating territory:', error);
-      throw error;
     }
+
+    return updates;
   },
 
-  subscribeToTerritories(callback: (territories: any[]) => void) {
-    const q = query(collection(db, 'territories'));
-    return onSnapshot(q, (snapshot) => {
-      const territories: any[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        // Asegurarse de que las coordenadas existan y sean válidas
-        if (data.coordinates && data.coordinates.length >= 3) {
-          territories.push({
-            id: doc.id,
-            ...data,
-          });
-        }
-      });
-      callback(territories);
+  // 🔄 sincronizar todo
+  async syncAll() {
+    const state = await NetInfo.fetch();
+    if (!state.isConnected) return localDB.getTerritories();
 
-      // Actualizar el caché de SWR con los datos en tiempo real
-      mutate(TERRITORIES_KEY, territories, false);
-    });
+    // 1. subir pendientes
+    const local = await localDB.getTerritories();
+    for (const t of local.filter((t) => !t.synced)) {
+      const ref = doc(db, "territories", t.id);
+      await setDoc(ref, { ...t, synced: true });
+    }
+
+    // 2. bajar desde firebase
+    const snapshot = await getDocs(collection(db, "territories"));
+    const remote = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Territory[];
+    console.log('sacando territorios de firebase')
+    await localDB.saveTerritories(remote);
+    mutate(TERRITORIES_KEY, remote, false);
+    return remote;
   },
 
-  // Función para revalidar manualmente
-  revalidateTerritories() {
-    return mutate(TERRITORIES_KEY);
+  async getLocalTerritories() {
+    return localDB.getTerritories();
   },
 
-  // 🔥 Aquí corregimos para que respete el formato {id, updates}
-async updateMultipleTerritories(updates: Partial<Territory>[]) {
-  const promises = updates.map((u) =>
-    this.updateTerritory(u.id!, u) // ahora u ya contiene las fechas al nivel del documento
-  );
-  return Promise.all(promises);
-},
+  // funciones batch (igual que ya tenías)
+  async updateMultipleTerritories(updates: Partial<Territory>[]) {
+    const promises = updates.map((u) => this.updateTerritory(u.id!, u));
+    return Promise.all(promises);
+  },
 
-// Marcar todos como listos
-async markAllAsReady(territories: Territory[]) {
-  const updates = territoryUtils.prepareReadyUpdates(territories);
-  return this.updateMultipleTerritories(updates);
-},
+  async markAllAsReady(territories: Territory[]) {
+    const updates = territoryUtils.prepareReadyUpdates(territories);
+    return this.updateMultipleTerritories(updates);
+  },
 
-// Marcar todos como completados
-async markAllAsCompleted(territories: Territory[]) {
-  const updates = territoryUtils.prepareCompletedUpdates(territories);
-  return this.updateMultipleTerritories(updates);
-},
+  async markAllAsCompleted(territories: Territory[]) {
+    const updates = territoryUtils.prepareCompletedUpdates(territories);
+    return this.updateMultipleTerritories(updates);
+  },
 };

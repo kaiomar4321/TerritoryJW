@@ -36,14 +36,16 @@ export const useTerritory = () => {
     setDrawingCoordinates([]);
   }, [isEditMode]);
 
-  useEffect(() => {
-    const unsubscribe = territoryService.subscribeToTerritories(() => {});
-    setIsSubscribed(true);
-    return () => {
-      unsubscribe();
-      setIsSubscribed(false);
-    };
-  }, []);
+useEffect(() => {
+  (async () => {
+    // cargar local siempre primero
+    const local = await territoryService.getLocalTerritories();
+    mutateTerritories(local, false);
+
+    // luego intentar sync si hay internet
+    await territoryService.syncAll();
+  })();
+}, []);
 
   const saveTerritory = useCallback(async () => {
     if (drawingCoordinates.length >= 3) {
