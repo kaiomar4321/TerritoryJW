@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Territory } from '~/types/Territory';
-import {
-  KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Platform,
-  Keyboard,
-} from 'react-native';
+import { KeyboardAvoidingView, TouchableWithoutFeedback, Platform, Keyboard } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { useHouses } from '~/hooks/useHouses';
 import TerritoryNormalView from './TerritoryNormalView';
 import AddHouseCard from './AddHouseCard';
 import TerritoryEditForm from './TerritoryEditForm';
-
 
 type Props = {
   territory: Territory | null;
@@ -129,12 +123,11 @@ const TerritoryDetails: React.FC<Props> = ({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <MotiView
-          className="z-20 flex flex-col w-full gap-2 overflow-hidden  bg-slate-200 p-4 shadow-lg"
+          className="z-20 flex w-full flex-col gap-2 overflow-hidden  bg-slate-200 p-4 shadow-lg"
           from={{ translateY: 300, opacity: 0 }}
           animate={{ translateY: 0, opacity: 1 }}
           exit={{ translateY: 300, opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 150 }}>
-          
           <AnimatePresence exitBeforeEnter>
             {!isEditing ? (
               !isAddingHouse ? (
@@ -142,12 +135,6 @@ const TerritoryDetails: React.FC<Props> = ({
                   territory={territory}
                   form={form}
                   isVisitActive={isVisitActive}
-                  startDisabled={startDisabled}
-                  endDisabled={endDisabled}
-                  showStartPicker={showStartPicker}
-                  showEndPicker={showEndPicker}
-                  setShowStartPicker={setShowStartPicker}
-                  setShowEndPicker={setShowEndPicker}
                   onStartVisit={handleStartVisit}
                   onEndVisit={handleEndVisit}
                   onSaveNote={handleSaveNote}

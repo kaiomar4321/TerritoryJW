@@ -5,7 +5,7 @@ import { auth } from '../config/firebase';
 import { Territory } from '~/types/Territory';
 import { MapPressEvent } from 'react-native-maps';
 import { useOfflineSWR } from './useOfflineSWR'; // 👈 nuevo hook
-
+import { getTerritoryStatus } from '~/utils/territoryStatus';
 
 export const useTerritory = () => {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -59,6 +59,13 @@ export const useTerritory = () => {
     }
   }, [drawingCoordinates]);
 
+  const territoriesWithStatus = useMemo(() => {
+    return territories.map((t) => ({
+      ...t,
+      status: getTerritoryStatus(t).id,
+    }));
+  }, [territories]);
+
   const updateTerritory = useCallback(async (id: string, updates: Partial<Territory>) => {
     try {
       await territoryService.updateTerritory(id, updates);
@@ -93,16 +100,10 @@ export const useTerritory = () => {
     [selectedTerritory, updateTerritory]
   );
 
-  const filteredTerritories = useMemo(() => {
-    if (!selectedFilter) return territories;
-    if (selectedFilter === 'active') {
-      return territories.filter((t) => t.visitStartDate && !t.visitEndDate);
-    }
-    if (selectedFilter === 'completed') {
-      return territories.filter((t) => t.visitEndDate);
-    }
-    return territories;
-  }, [territories, selectedFilter]);
+const filteredTerritories = useMemo(() => {
+    if (!selectedFilter) return territoriesWithStatus;
+    return territoriesWithStatus.filter((t) => t.status === selectedFilter);
+  }, [territoriesWithStatus, selectedFilter]);
 
   const refreshTerritories = useCallback(() => {
     return mutateTerritories();

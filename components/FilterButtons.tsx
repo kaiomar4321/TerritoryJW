@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView,  View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { FILTER_OPTIONS } from '~/types/FilterOption';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import SquareButton from './Buttons/SquareButton';
@@ -10,8 +10,8 @@ type Props = {
 
 const FilterButtons: React.FC<Props> = ({ selectedFilter, onFilterChange }) => {
   return (
-    <View className="absolute top-10   z-10   gap-2   p-1 px-2">
-      <ScrollView showsHorizontalScrollIndicator={false} className="  rounded-lg bg-white p-2  gap-1  ">
+    <View className="absolute top-5   z-10   gap-2   p-1 px-2">
+      <ScrollView showsHorizontalScrollIndicator={false} className="  rounded-lg bg-white p-2  ">
         {FILTER_OPTIONS.map((option) => (
           <SquareButton
             key={option.id}

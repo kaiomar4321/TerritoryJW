@@ -7,8 +7,8 @@ import { useLocation } from '~/hooks/useLocation';
 import { useTerritory } from '~/hooks/useTerritory';
 import { useHouses } from '~/hooks/useHouses';
 import { usePermissions } from '~/hooks/usePermissions';
-
-import { getTerritoryColor, getPolygonCenter } from '~/utils/mapUtils';
+import { getTerritoryStatus } from '~/utils/territoryStatus';
+import { getPolygonCenter } from '~/utils/mapUtils';
 
 import TerritoryDetails from 'components/TerritoryDetails/TerritoryDetails';
 import SquareButton from 'components/Buttons/SquareButton';
@@ -105,32 +105,48 @@ export default function TabIndex() {
             )}
 
           {/* Territorios */}
-          {filteredTerritories.map((territory) => (
-            <React.Fragment key={territory.id}>
-              <Polygon
-                coordinates={territory.coordinates}
-                strokeColor={getTerritoryColor(territory)}
-                fillColor={`${getTerritoryColor(territory)}55`}
-                tappable
-                onPress={(e) => {
-                  if (!isAddingHouse) {
-                    setSelectedTerritory(territory);
-                    setSelectedHouse(null);
-                    focusOnTerritory(territory);
-                  } else {
-                    handleAddingHouse(true, e.nativeEvent.coordinate);
-                  }
-                }}
-              />
-              {territory.coordinates?.length > 0 && (
-                <Marker coordinate={getPolygonCenter(territory.coordinates)}>
-                  <View className="rounded-full bg-white px-1.5 py-0.5">
-                    <Text className="text-xs font-bold">{territory.number}</Text>
-                  </View>
-                </Marker>
-              )}
-            </React.Fragment>
-          ))}
+          {filteredTerritories.map((territory) => {
+            // Determinar si este territorio debe tener transparencia reducida
+            const isCurrentSelected = selectedTerritory?.id === territory.id;
+            const hasSelectedTerritory = selectedTerritory !== null;
+            const shouldDimTerritory = hasSelectedTerritory && !isCurrentSelected;
+            
+            // Opacidad base del color del territorio
+            const baseOpacity = shouldDimTerritory ? '20' : '55'; // 30% para no seleccionados, 55% normal
+            
+            return (
+              <React.Fragment key={territory.id}>
+                <Polygon
+                  coordinates={territory.coordinates}
+                  strokeColor={`${getTerritoryStatus(territory).colorHex}${baseOpacity+20}`}
+                  strokeWidth={isCurrentSelected ? 3 : 1} // Borde más grueso para el seleccionado
+                  fillColor={`${getTerritoryStatus(territory).colorHex}${baseOpacity}`}
+                  tappable
+                  onPress={(e) => {
+                    if (!isAddingHouse) {
+                      setSelectedTerritory(territory);
+                      setSelectedHouse(null);
+                      focusOnTerritory(territory);
+                    } else {
+                      handleAddingHouse(true, e.nativeEvent.coordinate);
+                    }
+                  }}
+                />
+                {territory.coordinates?.length > 0 && (
+                  <Marker coordinate={getPolygonCenter(territory.coordinates)}>
+                    <View 
+                      className="rounded-full bg-white px-1.5 py-0.5"
+                      style={{ 
+                        opacity: shouldDimTerritory ? 0.5 : 1 // También dim el número del territorio
+                      }}
+                    >
+                      <Text className="text-xs font-bold">{territory.number}</Text>
+                    </View>
+                  </Marker>
+                )}
+              </React.Fragment>
+            );
+          })}
 
           {/* Marcador de casa en edición */}
           {isAddingHouse && currentHouseLocation && <Marker coordinate={currentHouseLocation} />}
@@ -195,7 +211,7 @@ export default function TabIndex() {
 
         {/* Modo admin */}
         {isAdmin && !selectedTerritory && (
-          <View className="absolute right-2 top-10 gap-2 rounded-xl bg-white p-2 shadow-lg ">
+          <View className="absolute right-2 top-5 gap-2 rounded-xl bg-white p-2 shadow-lg ">
             <SquareButton
               text={!isEditMode ? 'Nuevo Territorio' : 'Cancelar'}
               icon={!isEditMode ? 'add-circle-outline' : 'close-circle-outline'}

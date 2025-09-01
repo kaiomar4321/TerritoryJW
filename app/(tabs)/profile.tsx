@@ -7,11 +7,15 @@ import { CustomTextInput } from 'components/CustomTextInput';
 import { useUser } from '~/hooks/useUser';
 import { useState, useEffect } from 'react';
 import { MotiView, MotiText } from 'moti';
+import { styles } from 'components/styles';
+import { TerritoryStats } from 'components/TerritoryStats';
+import { useTerritory } from '~/hooks/useTerritory';
 
 export default function Profile() {
   const { userData, updateUser, loading } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({ displayName: '' });
+  const {territories} = useTerritory()
 
   useEffect(() => {
     if (userData) {
@@ -26,7 +30,7 @@ export default function Profile() {
     return <Text className="mt-10 text-center text-red-500">Usuario no encontrado</Text>;
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 px-5 py-2">
+    <ScrollView className={styles.containerCard}>
       {/* Encabezado con animación */}
       <MotiText
         from={{ opacity: 0, translateY: -20 }}
@@ -115,6 +119,7 @@ export default function Profile() {
           }}
         />
       </MotiView>
+      <TerritoryStats territories={territories} />
     </ScrollView>
   );
 }

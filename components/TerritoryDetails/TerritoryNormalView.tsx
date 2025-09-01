@@ -10,12 +10,7 @@ type Props = {
   territory: Territory;
   form: any;
   isVisitActive: boolean;
-  startDisabled: boolean;
-  endDisabled: boolean;
-  showStartPicker: boolean;
-  showEndPicker: boolean;
-  setShowStartPicker: (val: boolean) => void;
-  setShowEndPicker: (val: boolean) => void;
+
   onStartVisit: () => void;
   onEndVisit: () => void;
   onSaveNote: () => void;
@@ -29,12 +24,7 @@ const TerritoryNormalView: React.FC<Props> = ({
   territory,
   form,
   isVisitActive,
-  startDisabled,
-  endDisabled,
-  showStartPicker,
-  showEndPicker,
-  setShowStartPicker,
-  setShowEndPicker,
+
   onStartVisit,
   onEndVisit,
   onSaveNote,
@@ -61,13 +51,6 @@ const TerritoryNormalView: React.FC<Props> = ({
       <MotiView from={{ opacity: 0, translateY: 30 }} animate={{ opacity: 1, translateY: 0 }}>
         <VisitDateSection
           form={form}
-          isVisitActive={isVisitActive}
-          startDisabled={startDisabled}
-          endDisabled={endDisabled}
-          showStartPicker={showStartPicker}
-          showEndPicker={showEndPicker}
-          setShowStartPicker={setShowStartPicker}
-          setShowEndPicker={setShowEndPicker}
           onStart={onStartVisit}
           onEnd={onEndVisit}
           setForm={() => {}}

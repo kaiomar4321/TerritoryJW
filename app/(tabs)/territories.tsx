@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { CustomTextInput } from 'components/CustomTextInput';
-
+import { getTerritoryStatus } from '~/utils/territoryStatus';
 // Función para formatear el timestamp a "Día Mes Año"
 const formatDate = (timestamp: any) => {
   if (!timestamp) return null;
@@ -28,25 +28,24 @@ const formatDate = (timestamp: any) => {
   }).format(date);
 };
 
-type SortOptionType = 
-  | "oldest"
-  | "newest"
-  | "oldestCompleted"
-  | "newestCompleted"
-  | "ascNumber"
-  | "descNumber"
+type SortOptionType =
+  | 'oldest'
+  | 'newest'
+  | 'oldestCompleted'
+  | 'newestCompleted'
+  | 'ascNumber'
+  | 'descNumber'
   | null;
 
 const options: { label: string; value: SortOptionType }[] = [
-  { label: "Sin orden", value: null },
-  { label: "Más antiguos incompletos", value: "oldest" },
-  { label: "Más recientes incompletos", value: "newest" },
-  { label: "Más antiguos completados", value: "oldestCompleted" },
-  { label: "Más recientes completados", value: "newestCompleted" },
-  { label: "Número ascendente", value: "ascNumber" },
-  { label: "Número descendente", value: "descNumber" },
+  { label: 'Sin orden', value: null },
+  { label: 'Más antiguos incompletos', value: 'oldest' },
+  { label: 'Más recientes incompletos', value: 'newest' },
+  { label: 'Más antiguos completados', value: 'oldestCompleted' },
+  { label: 'Más recientes completados', value: 'newestCompleted' },
+  { label: 'Número ascendente', value: 'ascNumber' },
+  { label: 'Número descendente', value: 'descNumber' },
 ];
-
 
 export default function Territories() {
   const { territories, isLoading, error } = useTerritory();
@@ -138,7 +137,6 @@ export default function Territories() {
           />
         </View>
 
-       
         <View className="mb-2">
           {/* Botón principal */}
           <Text>Filtro:</Text>
@@ -208,12 +206,8 @@ export default function Territories() {
               }}
               className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-md">
               {/* Número */}
-              <View
-                className={clsx(
-                  'w-24 items-center justify-center',
-                  territory.visitEndDate ? 'bg-blue-400' : 'bg-yellow-300'
-                )}>
-                <Text className="text-3xl font-bold text-white">{territory.number}</Text>
+              <View className={clsx('w-24 items-center justify-center')} style={{backgroundColor:getTerritoryStatus(territory).colorHex}}>
+                <Text className="text-whit text-3xl font-bold">{territory.number}</Text>
               </View>
 
               {/* Info */}

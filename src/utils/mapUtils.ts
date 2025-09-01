@@ -1,15 +1,9 @@
-
+// mapUtils.ts
 import { Coordinate, Territory } from '~/types/Territory';
+import { getTerritoryStatus } from './territoryStatus';
+import { FILTER_OPTIONS } from '~/types/FilterOption';
+// Asignamos colores según el estado
 
-export const getTerritoryColor = (territory: Territory) => {
-  if (territory.visitStartDate && territory.visitEndDate) {
-    return '#3b82f6'; // Azul = completado
-  }
-  if (territory.visitStartDate && !territory.visitEndDate) {
-    return '#eab308'; // Amarillo = en progreso
-  }
-  return territory.color; // Color por defecto
-};
 
 export const getPolygonCenter = (coordinates: Coordinate[]): Coordinate => {
   if (!coordinates || coordinates.length === 0) {
