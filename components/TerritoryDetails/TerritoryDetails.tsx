@@ -12,6 +12,7 @@ type Props = {
   onClose: () => void;
   onUpdate: (id: string, data: Partial<Territory>) => Promise<void>;
   onAddingHouse: (isAdding: boolean) => void;
+  onDelete: (id: string)=> Promise<void>;
   currentLocation: { latitude: number; longitude: number } | null;
 };
 
@@ -20,12 +21,12 @@ const TerritoryDetails: React.FC<Props> = ({
   onClose,
   onUpdate,
   onAddingHouse,
+  onDelete,
   currentLocation,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingHouse, setIsAddingHouse] = useState(false);
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+
   const { addHouse } = useHouses(territory?.id ?? null);
 
   const [formHouse, setFormHouse] = useState({ address: '', reason: '' });
@@ -65,6 +66,10 @@ const TerritoryDetails: React.FC<Props> = ({
     await onUpdate(territory.id, form);
     setIsEditing(false);
   };
+
+const handleDelete = async() =>{
+  await onDelete(territory.id)
+}
 
   const handleAddHouseClick = () => {
     setIsAddingHouse(true);
@@ -112,8 +117,7 @@ const TerritoryDetails: React.FC<Props> = ({
   };
 
   // 📌 Estados derivados
-  const startDisabled = !!form.visitStartDate && !form.visitEndDate;
-  const endDisabled = !!form.visitEndDate || !form.visitStartDate;
+
   const isVisitActive = !!form.visitStartDate && !form.visitEndDate;
 
   return (
@@ -156,7 +160,10 @@ const TerritoryDetails: React.FC<Props> = ({
                 form={form}
                 onChange={handleChange}
                 onSave={handleSave}
-                onCancel={() => setIsEditing(false)}
+                onCancel={() => setIsEditing(false)
+                  
+                }
+                onDelete={handleDelete}
               />
             )}
           </AnimatePresence>
@@ -168,3 +175,5 @@ const TerritoryDetails: React.FC<Props> = ({
 
 TerritoryDetails.displayName = 'TerritoryDetails';
 export default TerritoryDetails;
+
+

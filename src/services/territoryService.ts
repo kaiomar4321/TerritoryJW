@@ -1,5 +1,5 @@
 import { db } from "../config/firebase";
-import { collection, addDoc, query, onSnapshot, doc, updateDoc, getDocs, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, onSnapshot, doc, updateDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { mutate } from "swr";
 import { Territory } from "~/types/Territory";
 import { territoryUtils } from "~/utils/territoryUtils";
@@ -14,8 +14,14 @@ export const territoryService = {
       throw new Error("Se necesitan al menos 3 puntos para crear un territorio");
     }
 
-    const newTerritory: Territory = {
-      id: Date.now().toString(), // id temporal si offline
+    // ✅ Checar conexión antes de guardar
+    const state = await NetInfo.fetch();
+    if (!state.isConnected) {
+      console.log("🚫 No hay internet, no se guardó en Firestore");
+      throw new Error("No hay conexión a internet");
+    }
+
+    const newTerritory: Omit<Territory, "id"> = {
       coordinates,
       createdBy: userId,
       createdAt: new Date().toISOString(),
@@ -23,26 +29,39 @@ export const territoryService = {
       name: "Territorio Nuevo",
       number: 0,
       lastModified: Date.now(),
-      synced: false,
+      synced: true,
     };
 
-    // guardar en local primero
-    const local = await localDB.getTerritories();
-    await localDB.saveTerritories([...local, newTerritory]);
+    const docRef = await addDoc(collection(db, "territories"), newTerritory);
+    console.log("✅ Territorio guardado en Firestore con id:", docRef.id);
+
     mutate(TERRITORIES_KEY);
+    return { ...newTerritory, id: docRef.id };
+  },
 
-    // si hay internet, subir a Firestore
-    const state = await NetInfo.fetch();
-    if (state.isConnected) {
-      const docRef = await addDoc(collection(db, "territories"), newTerritory);
-      // reemplazar id temporal por id real
-      const updated = { ...newTerritory, id: docRef.id, synced: true };
-      await localDB.saveTerritories([...local, updated]);
-      mutate(TERRITORIES_KEY);
-      return updated;
+  async deleteTerritory(id: string) {
+    if (!id) throw new Error("Se necesita un id para eliminar el territorio");
+
+    try {
+      // 🔹 1. Eliminar localmente
+      const local = await localDB.getTerritories();
+      const updatedLocal = local.filter((t) => t.id !== id);
+      await localDB.saveTerritories(updatedLocal);
+      mutate(TERRITORIES_KEY, updatedLocal, false);
+
+      // 🔹 2. Si hay internet, eliminar en Firestore
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const territoryRef = doc(db, "territories", id);
+        await deleteDoc(territoryRef);
+        console.log("🗑️ Territorio eliminado de Firestore:", id);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error eliminando territorio:", error);
+      throw error;
     }
-
-    return newTerritory;
   },
 
   async updateTerritory(id: string, updates: Partial<Territory>) {
@@ -65,6 +84,7 @@ export const territoryService = {
       );
       await localDB.saveTerritories(syncedData);
       mutate(TERRITORIES_KEY);
+      console.log("✏️ Territorio actualizado en Firestore:", id);
     }
 
     return updates;
@@ -73,19 +93,23 @@ export const territoryService = {
   // 🔄 sincronizar todo
   async syncAll() {
     const state = await NetInfo.fetch();
-    if (!state.isConnected) return localDB.getTerritories();
+    if (!state.isConnected) {
+      console.log("📦 Usando territorios locales (sin internet)");
+      return localDB.getTerritories();
+    }
 
     // 1. subir pendientes
     const local = await localDB.getTerritories();
     for (const t of local.filter((t) => !t.synced)) {
       const ref = doc(db, "territories", t.id);
       await setDoc(ref, { ...t, synced: true });
+      console.log("⬆️ Sincronizado a Firestore:", t.id);
     }
 
     // 2. bajar desde firebase
     const snapshot = await getDocs(collection(db, "territories"));
     const remote = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Territory[];
-    console.log('sacando territorios de firebase')
+    console.log("⬇️ Territorios cargados desde Firestore:", remote.length);
     await localDB.saveTerritories(remote);
     mutate(TERRITORIES_KEY, remote, false);
     return remote;
@@ -95,7 +119,7 @@ export const territoryService = {
     return localDB.getTerritories();
   },
 
-  // funciones batch (igual que ya tenías)
+  // funciones batch
   async updateMultipleTerritories(updates: Partial<Territory>[]) {
     const promises = updates.map((u) => this.updateTerritory(u.id!, u));
     return Promise.all(promises);

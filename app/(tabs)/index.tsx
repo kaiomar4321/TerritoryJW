@@ -31,6 +31,8 @@ export default function TabIndex() {
     updateTerritory,
     selectedFilter,
     setSelectedFilter,
+    deleteTerritory
+    
   } = useTerritory();
 
   const {
@@ -202,6 +204,7 @@ export default function TabIndex() {
           onUpdate={updateTerritory}
           onAddingHouse={handleAddingHouse}
           currentLocation={currentHouseLocation}
+          onDelete={deleteTerritory}
         />
 
         {/* Botón ubicación */}

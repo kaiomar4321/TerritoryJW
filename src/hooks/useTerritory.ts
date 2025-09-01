@@ -133,6 +133,36 @@ useEffect(() => {
     }
   }, [mutateTerritories]);
 
+  const deleteTerritory = useCallback(
+  async (id: string) => {
+    if (!id) return;
+    try {
+      // 🔹 eliminar localmente con mutate
+      await mutateTerritories(
+        async (current) => {
+          if (!current) return current;
+          const newData = current.filter((t) => t.id !== id);
+          return newData;
+        },
+        { revalidate: false } // evitar re-fetch inmediato
+      );
+
+      // 🔹 eliminar en Firestore
+      await territoryService.deleteTerritory(id);
+
+      // 🔹 limpiar selección si era el eliminado
+      if (selectedTerritory?.id === id) {
+        setSelectedTerritory(null);
+      }
+    } catch (error) {
+      console.error('Error eliminando el territorio:', error);
+      alert('No se pudo eliminar el territorio.');
+    }
+  },
+  [mutateTerritories, selectedTerritory]
+);
+
+
   const handleMapPress = useCallback(
     (event: MapPressEvent, isAdmin: boolean) => {
       if (isEditMode && isAdmin && auth.currentUser) {
@@ -190,6 +220,7 @@ useEffect(() => {
     allReady,
     allCompleted,
     markAllReady,
-    markAllCompleted
+    markAllCompleted,
+    deleteTerritory
   };
 };

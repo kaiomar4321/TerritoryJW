@@ -11,9 +11,10 @@ type Props = {
   onChange: (key: any, value: any) => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete: () => void;
 };
 
-const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel }) => {
+const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel, onDelete}) => {
   return (
     <MotiView
       className={styles.containerCard}
@@ -57,6 +58,7 @@ const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel }
           className="mt-2.5"
         />
         <CustomButton text="Cancelar" onPress={onCancel} variant="secondary" className="mt-2" />
+         <CustomButton text="Eliminar" onPress={onDelete} variant="secondary" className="mt-2" />
       </MotiView>
     </MotiView>
   );
