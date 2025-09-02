@@ -10,13 +10,14 @@ import { MotiView, MotiText } from 'moti';
 import { styles } from 'components/styles';
 import { TerritoryStats } from 'components/TerritoryStats';
 import { useTerritory } from '~/hooks/useTerritory';
+import { usePermissions } from '~/hooks/usePermissions';
 
 export default function Profile() {
   const { userData, updateUser, loading } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({ displayName: '' });
-  const { territories, allCompleted, allReady, markAllCompleted, markAllReady } = useTerritory();
-
+  const { territories, allCompleted, markAllReady } = useTerritory();
+  const { isAdmin } = usePermissions();
   useEffect(() => {
     if (userData) {
       setForm({
@@ -115,24 +116,30 @@ export default function Profile() {
       )}
       {/* Formulario / Botones */}
       <TerritoryStats territories={territories} />
-      <MotiView
-        from={{ opacity: 0, translateY: 30 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 700, delay: 200 }}
-        className="mt-10 space-y-4">
-        <CustomButton
-          text="Marcar todos como Listos"
-          onPress={markAllReady}
-          variant="primary"
-          disabled={allReady} // 🔒 se desactiva si ya están listos
-          fullWidth
-          className="mb-4"
-        />
-        
-      </MotiView>
-      
-      <View className=''>
-        
+      {allCompleted && isAdmin && (
+        <MotiView
+          from={{ opacity: 0, translateY: 30 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 700, delay: 200 }}
+          className={styles.containerCard}>
+          <View>
+            <Text className="leading text-center text-xl">
+              Todo el territorio se ha completado!!
+            </Text>
+            <Text className="text-center leading-none">¿Quiere reiniciar el territorio?</Text>
+          </View>
+          <CustomButton
+            text="Marcar todos como Listos"
+            onPress={markAllReady}
+            variant="primary"
+            disabled={!allCompleted} // 🔒 se desactiva si ya están listos
+            fullWidth
+            className="mb-4"
+          />
+        </MotiView>
+      )}
+
+      <View className="">
         <CustomButton
           text="Cerrar sesión"
           variant="danger"

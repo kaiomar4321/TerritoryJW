@@ -74,7 +74,7 @@ export default function Territories() {
       <View className="bg-white px-4 py-2 shadow">
         <Text className="mb-4 text-center text-3xl font-bold">Territorios</Text>
 
-        {/* Buscador */}
+        <View>{/* Buscador */}
         <CustomTextInput
           placeholder="Buscar por nombre o número..."
           value={searchQuery}
@@ -85,16 +85,18 @@ export default function Territories() {
         />
 
         {/* Botón para abrir Bottom Sheet */}
-        <Text>Filtro y orden:</Text>
-        <TouchableOpacity
-          onPress={() => setBottomSheetOpen(true)}
-          className="rounded-xl border border-gray-300 bg-white p-3">
-          <Text className="text-gray-700">
-            {filterOption ? FILTER_OPTIONS.find((o) => o.id === filterOption)?.label : 'Todos'}
-            {' | '}
-            {sortOption ? sortOption : 'Sin orden'}
-          </Text>
-        </TouchableOpacity>
+        <View>
+          <Text className="ps-2 text-sm text-gray-500">Filtro y orden:</Text>
+          <TouchableOpacity
+            onPress={() => setBottomSheetOpen(true)}
+            className="rounded-xl border border-gray-300 bg-white p-3">
+            <Text className="text-gray-700">
+              {filterOption ? FILTER_OPTIONS.find((o) => o.id === filterOption)?.label : 'Todos'}
+              {' | '}
+              {sortOption ? sortOption : 'Sin orden'}
+            </Text>
+          </TouchableOpacity>
+        </View></View>
       </View>
 
       {/* Bottom Sheet con Moti */}
@@ -127,7 +129,7 @@ export default function Territories() {
               onPress={() =>
                 router.push({ pathname: '/' as any, params: { territoryId: territory.id } })
               }
-              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-md">
+              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-sm">
               {/* Número */}
               <View
                 className={clsx('w-24 items-center justify-center')}
@@ -139,15 +141,11 @@ export default function Territories() {
               <View className="flex-1 p-3">
                 <Text className="text-lg font-semibold text-gray-800">{territory.name}</Text>
 
-                {territory.visitEndDate ? (
-                  <Text className="text-sm text-gray-600">
-                    Finalizó: {formatDate(territory.visitEndDate)}
-                  </Text>
-                ) : (
-                  <Text className="text-sm text-gray-600">
-                    Inició: {formatDate(territory.visitStartDate)}
-                  </Text>
-                )}
+                <Text className="text-sm text-gray-600">
+                  {territory.visitStartDate
+                    ? `Inició: ${formatDate(territory.visitStartDate)}${territory.visitEndDate ? ` | Finalizó: ${formatDate(territory.visitEndDate)}` : ''}`
+                    : 'Sin fecha todavia'}
+                </Text>
 
                 {territory.note ? (
                   <View className="mt-1 bg-slate-100 p-1">
