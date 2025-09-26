@@ -5,8 +5,9 @@
   },
   "build": {
     "adhoc": {
-      "distribution": "internal",
+      "distribution": "adhoc",
       "ios": {
+        "resourceClass": "m-medium",
         "simulator": false
       },
       "env": {
