@@ -10,7 +10,7 @@
         "simulator": false
       },
       "env": {
-        "GOOGLE_PLIST": "$GOOGLE_PLIST"
+        "GOOGLE_PLIST": "@env:GOOGLE_PLIST"
       }
     },
     "development": {
