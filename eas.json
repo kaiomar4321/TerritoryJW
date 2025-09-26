@@ -5,13 +5,12 @@
   },
   "build": {
     "adhoc": {
-      "distribution": "adhoc",
+      "distribution": "internal",
       "ios": {
-        "resourceClass": "m-medium",
         "simulator": false
       },
       "env": {
-        "GOOGLE_PLIST": "@env:GOOGLE_PLIST"
+        "GOOGLE_PLIST": "$GOOGLE_PLIST"
       }
     },
     "development": {
