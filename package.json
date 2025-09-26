@@ -23,6 +23,7 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "clsx": "^2.1.1",
     "expo": "^54.0.0",
+    "expo-build-properties": "~1.0.9",
     "expo-constants": "~18.0.9",
     "expo-dev-client": "~6.0.12",
     "expo-linking": "~8.0.8",
