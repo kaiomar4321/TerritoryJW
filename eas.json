@@ -8,6 +8,9 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "GOOGLE_PLIST": "$GOOGLE_PLIST"
       }
     },
     "development": {
