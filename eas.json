@@ -4,6 +4,12 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "adhoc": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
     "development": {
       "developmentClient": true,
       "distribution": "internal"

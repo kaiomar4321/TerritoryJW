@@ -39,6 +39,7 @@
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.miapp.territorios",
+      "googleServicesFile": "./ios/GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
