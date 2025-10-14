@@ -16,10 +16,16 @@
     },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_USE_STATIC_FRAMEWORKS": "1"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_USE_STATIC_FRAMEWORKS": "1"
+      }
     },
     "production": {
       "ios": {
@@ -30,6 +36,9 @@
         "distribution": "store",
         "buildType": "apk",
         "autoIncrement": true
+      },
+      "env": {
+        "EXPO_USE_STATIC_FRAMEWORKS": "1"
       }
     }
   },
