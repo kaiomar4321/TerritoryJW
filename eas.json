@@ -10,7 +10,8 @@
         "simulator": false
       },
       "env": {
-        "GOOGLE_PLIST": "$GOOGLE_PLIST"
+        "GOOGLE_PLIST": "$GOOGLE_PLIST",
+        "EXPO_USE_STATIC_FRAMEWORKS": "1"
       }
     },
     "development": {
