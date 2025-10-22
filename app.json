@@ -47,7 +47,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
       "config": {
-        "googleMapsApiKey": "AIzaSyBptFNS1vi9_jINGrcVDC57PntXpl5MyfQ"
+        "googleMapsApiKey": "AIzaSyCiyuG-uMQjgT2JBgJ3dV0I_bDyx8pU1MQ"
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
