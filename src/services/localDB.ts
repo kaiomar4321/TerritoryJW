@@ -1,25 +1,28 @@
+// localDB.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Territory } from '~/types/Territory';
-
-const STORAGE_KEY = 'territories';
 
 export const localDB = {
-  async getTerritories(): Promise<Territory[]> {
+  async getCollection<T>(key: string): Promise<T[]> {
     try {
-      console.log('sacando territorios del local');
-      const json = await AsyncStorage.getItem(STORAGE_KEY);
-      return json ? JSON.parse(json) : [];
+      const json = await AsyncStorage.getItem(key);
+      if (!json) return []; // 🔹 Si no existe, devolver array vacío
+      const parsed = JSON.parse(json);
+      return Array.isArray(parsed) ? parsed : []; // 🔹 Asegurar que sea array
     } catch (e) {
-      console.error('Error leyendo territorios locales', e);
-      return [];
+      console.error(`Error leyendo colección local (${key})`, e);
+      return []; // 🔹 Siempre devolver array en caso de error
     }
   },
 
-  async saveTerritories(territories: Territory[]) {
+  async saveCollection<T>(key: string, data: T[]) {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(territories));
+      if (!Array.isArray(data)) {
+        console.warn(`Intentando guardar algo que no es array en (${key})`);
+        return;
+      }
+      await AsyncStorage.setItem(key, JSON.stringify(data));
     } catch (e) {
-      console.error('Error guardando territorios locales', e);
+      console.error(`Error guardando colección local (${key})`, e);
     }
   },
 };

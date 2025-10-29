@@ -75,29 +75,31 @@ export default function Territories() {
       <View className="bg-white px-4 py-2 shadow">
         <Text className="mb-4 text-center text-3xl font-bold">Territorios</Text>
 
-        <View>{/* Buscador */}
-        <CustomTextInput
-          placeholder="Buscar por nombre o número..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          iconLeft="search"
-          className="mb-3"
-          placeholderTextColor="#9CA3AF"
-        />
-
-        {/* Botón para abrir Bottom Sheet */}
         <View>
-          <Text className="ps-2 text-sm text-gray-500">Filtro y orden:</Text>
-          <TouchableOpacity
-            onPress={() => setBottomSheetOpen(true)}
-            className="rounded-xl border border-gray-300 bg-white p-3">
-            <Text className="text-gray-700">
-              {filterOption ? FILTER_OPTIONS.find((o) => o.id === filterOption)?.label : 'Todos'}
-              {' | '}
-              {sortOption ? sortOption : 'Sin orden'}
-            </Text>
-          </TouchableOpacity>
-        </View></View>
+          {/* Buscador */}
+          <CustomTextInput
+            placeholder="Buscar por nombre o número..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            iconLeft="search"
+            className="mb-3"
+            placeholderTextColor="#9CA3AF"
+          />
+
+          {/* Botón para abrir Bottom Sheet */}
+          <View>
+            <Text className="ps-2 text-sm text-gray-500">Filtro y orden:</Text>
+            <TouchableOpacity
+              onPress={() => setBottomSheetOpen(true)}
+              className="rounded-xl border border-gray-300 bg-white p-3">
+              <Text className="text-gray-700">
+                {filterOption ? FILTER_OPTIONS.find((o) => o.id === filterOption)?.label : 'Todos'}
+                {' | '}
+                {sortOption ? sortOption : 'Sin orden'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Bottom Sheet con Moti */}
@@ -144,8 +146,12 @@ export default function Territories() {
 
                 <Text className="text-sm text-gray-600">
                   {territory.visitStartDate
-                    ? `Inició: ${formatDate(territory.visitStartDate)}${territory.visitEndDate ? ` | Finalizó: ${formatDate(territory.visitEndDate)}` : ''}`
-                    : 'Sin fecha todavia'}
+                    ? `Inició: ${formatDate(territory.visitStartDate)}`
+                    : 'Sin fecha todavía'}
+                </Text>
+
+                <Text className="text-sm text-gray-600">
+                  {territory.visitEndDate ? `Finalizó: ${formatDate(territory.visitEndDate)}` : ''}
                 </Text>
 
                 {territory.note ? (

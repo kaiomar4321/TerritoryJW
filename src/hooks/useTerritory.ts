@@ -14,7 +14,7 @@ export const useTerritory = () => {
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  
+
   // Estados locales para operaciones batch
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -36,16 +36,16 @@ export const useTerritory = () => {
     setDrawingCoordinates([]);
   }, [isEditMode]);
 
-useEffect(() => {
-  (async () => {
-    // cargar local siempre primero
-    const local = await territoryService.getLocalTerritories();
-    mutateTerritories(local, false);
+  useEffect(() => {
+    (async () => {
+      // cargar local siempre primero
+      const local = await territoryService.getLocalTerritories();
+      mutateTerritories(local, false);
 
-    // luego intentar sync si hay internet
-    await territoryService.syncAll();
-  })();
-}, []);
+      // luego intentar sync si hay internet
+      await territoryService.syncAll();
+    })();
+  }, []);
 
   const saveTerritory = useCallback(async () => {
     if (drawingCoordinates.length >= 3) {
@@ -66,15 +66,9 @@ useEffect(() => {
     }
   }, [drawingCoordinates]);
 
-  const allReady = useMemo(() => 
-    territoryUtils.areAllReady(territories), 
-    [territories]
-  );
-  
-  const allCompleted = useMemo(() => 
-    territoryUtils.areAllCompleted(territories), 
-    [territories]
-  );
+  const allReady = useMemo(() => territoryUtils.areAllReady(territories), [territories]);
+
+  const allCompleted = useMemo(() => territoryUtils.areAllCompleted(territories), [territories]);
 
   const markAllReady = async () => {
     try {
@@ -83,8 +77,8 @@ useEffect(() => {
       await territoryService.markAllAsReady(territories);
       await refreshTerritories();
     } catch (error) {
-      console.error("Error al marcar como listos:", error);
-      setBatchError("No se pudieron marcar los territorios como listos");
+      console.error('Error al marcar como listos:', error);
+      setBatchError('No se pudieron marcar los territorios como listos');
     } finally {
       setIsBatchLoading(false);
     }
@@ -97,13 +91,13 @@ useEffect(() => {
       await territoryService.markAllAsCompleted(territories);
       await refreshTerritories();
     } catch (error) {
-      console.error("Error al marcar como completados:", error);
-      setBatchError("No se pudieron marcar los territorios como completados");
+      console.error('Error al marcar como completados:', error);
+      setBatchError('No se pudieron marcar los territorios como completados');
     } finally {
       setIsBatchLoading(false);
     }
   };
-  
+
   const territoriesWithStatus = useMemo(() => {
     return territories.map((t) => ({
       ...t,
@@ -111,57 +105,57 @@ useEffect(() => {
     }));
   }, [territories]);
 
-  const updateTerritory = useCallback(async (id: string, updates: Partial<Territory>) => {
-    try {
-      await mutateTerritories(
-        async (current) => {
-          // 🔹 actualiza localmente
-          if (!current) return current;
-          const newData = current.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
-          );
-          // 🔹 dispara update en Firestore
-          await territoryService.updateTerritory(id, updates);
-          return newData;
-        },
-        { revalidate: false } // 👈 evita doble request inmediato
-      );
-      setSelectedTerritory(null);
-    } catch (error) {
-      alert('Error al actualizar el territorio.');
-      console.log(error);
-    }
-  }, [mutateTerritories]);
+  const updateTerritory = useCallback(
+    async (id: string, updates: Partial<Territory>) => {
+      try {
+        await mutateTerritories(
+          async (current) => {
+            // 🔹 actualiza localmente
+            if (!current) return current;
+            const newData = current.map((t) => (t.id === id ? { ...t, ...updates } : t));
+            // 🔹 dispara update en Firestore
+            await territoryService.updateTerritory(id, updates);
+            return newData;
+          },
+          { revalidate: false } // 👈 evita doble request inmediato
+        );
+        setSelectedTerritory(null);
+      } catch (error) {
+        alert('Error al actualizar el territorio.');
+        console.log(error);
+      }
+    },
+    [mutateTerritories]
+  );
 
   const deleteTerritory = useCallback(
-  async (id: string) => {
-    if (!id) return;
-    try {
-      // 🔹 eliminar localmente con mutate
-      await mutateTerritories(
-        async (current) => {
-          if (!current) return current;
-          const newData = current.filter((t) => t.id !== id);
-          return newData;
-        },
-        { revalidate: false } // evitar re-fetch inmediato
-      );
+    async (id: string) => {
+      if (!id) return;
+      try {
+        // 🔹 eliminar localmente con mutate
+        await mutateTerritories(
+          async (current) => {
+            if (!current) return current;
+            const newData = current.filter((t) => t.id !== id);
+            return newData;
+          },
+          { revalidate: false } // evitar re-fetch inmediato
+        );
 
-      // 🔹 eliminar en Firestore
-      await territoryService.deleteTerritory(id);
+        // 🔹 eliminar en Firestore
+        await territoryService.deleteTerritory(id);
 
-      // 🔹 limpiar selección si era el eliminado
-      if (selectedTerritory?.id === id) {
-        setSelectedTerritory(null);
+        // 🔹 limpiar selección si era el eliminado
+        if (selectedTerritory?.id === id) {
+          setSelectedTerritory(null);
+        }
+      } catch (error) {
+        console.error('Error eliminando el territorio:', error);
+        alert('No se pudo eliminar el territorio.');
       }
-    } catch (error) {
-      console.error('Error eliminando el territorio:', error);
-      alert('No se pudo eliminar el territorio.');
-    }
-  },
-  [mutateTerritories, selectedTerritory]
-);
-
+    },
+    [mutateTerritories, selectedTerritory]
+  );
 
   const handleMapPress = useCallback(
     (event: MapPressEvent, isAdmin: boolean) => {
@@ -196,7 +190,23 @@ useEffect(() => {
     return mutateTerritories();
   }, [mutateTerritories]);
 
+  const assignToGroup = useCallback(
+    async (territoryId: string, groupId: string) => {
+      await updateTerritory(territoryId, { groupId });
+    },
+    [updateTerritory]
+  );
+
+  const unassignFromGroup = useCallback(
+    async (territoryId: string) => {
+      await updateTerritory(territoryId, { groupId: null });
+    },
+    [updateTerritory]
+  );
+
   return {
+    assignToGroup,
+    unassignFromGroup,
     territories,
     filteredTerritories,
     isLoading, // del useOfflineSWR
@@ -221,6 +231,6 @@ useEffect(() => {
     allCompleted,
     markAllReady,
     markAllCompleted,
-    deleteTerritory
+    deleteTerritory,
   };
 };

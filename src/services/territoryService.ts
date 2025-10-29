@@ -7,6 +7,7 @@ import { localDB } from "./localDB";
 import NetInfo from "@react-native-community/netinfo";
 
 export const TERRITORIES_KEY = "firestore:territories";
+const LOCAL_STORAGE_KEY = "territories"; // 🔑 Key para AsyncStorage
 
 export const territoryService = {
   async saveTerritory(coordinates: any[], userId: string) {
@@ -43,10 +44,10 @@ export const territoryService = {
     if (!id) throw new Error("Se necesita un id para eliminar el territorio");
 
     try {
-      // 🔹 1. Eliminar localmente
-      const local = await localDB.getTerritories();
+      // 🔹 1. Eliminar localmente usando localDB
+      const local = await localDB.getCollection<Territory>(LOCAL_STORAGE_KEY);
       const updatedLocal = local.filter((t) => t.id !== id);
-      await localDB.saveTerritories(updatedLocal);
+      await localDB.saveCollection(LOCAL_STORAGE_KEY, updatedLocal);
       mutate(TERRITORIES_KEY, updatedLocal, false);
 
       // 🔹 2. Si hay internet, eliminar en Firestore
@@ -65,14 +66,14 @@ export const territoryService = {
   },
 
   async updateTerritory(id: string, updates: Partial<Territory>) {
-    const local = await localDB.getTerritories();
+    const local = await localDB.getCollection<Territory>(LOCAL_STORAGE_KEY);
     const updatedAt = Date.now();
 
     const newData = local.map((t) =>
       t.id === id ? { ...t, ...updates, lastModified: updatedAt, synced: false } : t
     );
 
-    await localDB.saveTerritories(newData);
+    await localDB.saveCollection(LOCAL_STORAGE_KEY, newData);
     mutate(TERRITORIES_KEY);
 
     const state = await NetInfo.fetch();
@@ -82,7 +83,7 @@ export const territoryService = {
       const syncedData = newData.map((t) =>
         t.id === id ? { ...t, synced: true } : t
       );
-      await localDB.saveTerritories(syncedData);
+      await localDB.saveCollection(LOCAL_STORAGE_KEY, syncedData);
       mutate(TERRITORIES_KEY);
       console.log("✏️ Territorio actualizado en Firestore:", id);
     }
@@ -95,11 +96,11 @@ export const territoryService = {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       console.log("📦 Usando territorios locales (sin internet)");
-      return localDB.getTerritories();
+      return localDB.getCollection<Territory>(LOCAL_STORAGE_KEY);
     }
 
     // 1. subir pendientes
-    const local = await localDB.getTerritories();
+    const local = await localDB.getCollection<Territory>(LOCAL_STORAGE_KEY);
     for (const t of local.filter((t) => !t.synced)) {
       const ref = doc(db, "territories", t.id);
       await setDoc(ref, { ...t, synced: true });
@@ -110,13 +111,13 @@ export const territoryService = {
     const snapshot = await getDocs(collection(db, "territories"));
     const remote = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Territory[];
     console.log("⬇️ Territorios cargados desde Firestore:", remote.length);
-    await localDB.saveTerritories(remote);
+    await localDB.saveCollection(LOCAL_STORAGE_KEY, remote);
     mutate(TERRITORIES_KEY, remote, false);
     return remote;
   },
 
   async getLocalTerritories() {
-    return localDB.getTerritories();
+    return localDB.getCollection<Territory>(LOCAL_STORAGE_KEY);
   },
 
   // funciones batch
