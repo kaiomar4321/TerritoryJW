@@ -12,6 +12,7 @@ module.exports = {
       colors: {
         morado: '#925ffa',
         gris: '#9D9D9D',
+        gris2: '#efefef',
         negro: '#292929',
         black1: '#0C0C0C',
         black2: '#191919',

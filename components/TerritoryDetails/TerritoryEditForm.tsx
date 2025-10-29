@@ -48,19 +48,25 @@ const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel, 
           </MotiView>
         </MotiView>
 
-        <MotiView from={{ opacity: 0, translateX: -50 }} animate={{ opacity: 1, translateX: 0 }}>
+        <MotiView
+          className=" flex gap-2.5"
+          from={{ opacity: 0, translateX: -50 }}
+          animate={{ opacity: 1, translateX: 0 }}>
           <CustomTextInput
+            iconLeft="map-outline"
             placeholder="Nombre"
             value={form.name}
             onChangeText={(t) => onChange('name', t)}
           />
           <CustomTextInput
+            iconLeft="keypad-outline"
             placeholder="Numero"
             value={String(form.number)}
             onChangeText={(t) => onChange('number', t)}
             keyboardType="decimal-pad"
           />
           <CustomTextInput
+            iconLeft="color-fill-outline"
             placeholder="Color"
             value={form.color}
             onChangeText={(t) => onChange('color', t)}

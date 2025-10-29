@@ -5,8 +5,9 @@ import { CustomButton } from './CustomButton';
 import { CustomTextInput } from './CustomTextInput';
 
 export const AddHouseForm = ({ formHouse, onChange, onSave, onCancel }: any) => (
-  <View>
+  <View className="flex gap-2.5">
     <CustomTextInput
+      iconLeft="home-outline"
       placeholder="Dirección o Detalles"
       value={formHouse.address}
       onChangeText={(text) => onChange('address', text)}
@@ -15,6 +16,7 @@ export const AddHouseForm = ({ formHouse, onChange, onSave, onCancel }: any) => 
       autoComplete="email"
     />
     <CustomTextInput
+      iconLeft="reader-outline"
       placeholder="Razón (Opcional)"
       value={formHouse.reason}
       onChangeText={(text) => onChange('reason', text)}
@@ -23,7 +25,10 @@ export const AddHouseForm = ({ formHouse, onChange, onSave, onCancel }: any) => 
       autoComplete="email"
     />
 
-    <CustomButton text="Guardar" onPress={onSave} variant="primary" className="mt-2.5" />
-    <CustomButton text="Cancelar" onPress={onCancel} variant="secondary" className="mt-2" />
+    <View>
+     
+      <CustomButton text="Guardar" onPress={onSave} variant="primary" className="mt-2.5" />
+      <CustomButton text="Cancelar" onPress={onCancel} variant="secondary" className="mt-2" />
+    </View>
   </View>
 );

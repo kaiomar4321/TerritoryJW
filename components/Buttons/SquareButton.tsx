@@ -26,7 +26,7 @@ const SquareButton: React.FC<SquareButtonProps> = ({ text, icon, onPress, isSele
       />
       <Text
         className={clsx(
-          'text-sm text-center leading-none',
+          'text-xs text-center leading-none',
           isSelected ? 'text-white' : 'text-gray-700 '
         )}>
         {text}

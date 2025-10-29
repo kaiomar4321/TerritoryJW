@@ -80,7 +80,7 @@ export default function Territories() {
           placeholder="Buscar por nombre o número..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          iconLeft={<Ionicons name="search" size={20} color="#6B7280" />}
+          iconLeft="search"
           className="mb-3"
           placeholderTextColor="#9CA3AF"
         />

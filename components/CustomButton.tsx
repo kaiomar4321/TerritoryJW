@@ -26,10 +26,10 @@ export function CustomButton({
   fullWidth = true,
   className = '',
 }: Props) {
-  const baseStyle = 'px-4 py-3 rounded-md  flex-row items-center justify-center';
+  const baseStyle = 'px-4 py-3 rounded-md  flex-row items-center justify-center h-12';
   const variants = {
     primary: 'bg-morado',
-    secondary: 'bg-gris text-gray-900',
+    secondary: 'bg-gris',
     danger: 'bg-red-600 text-white',
   };
   const selected = variants[variant];

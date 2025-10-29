@@ -3,6 +3,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../src/config/firebase';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useSegments, Slot } from 'expo-router';
+// 👈 Importa el Provider
+import { SafeAreaProvider } from 'react-native-safe-area-context'; 
 
 import '../global.css';
 
@@ -29,21 +31,20 @@ export default function RootLayout() {
     if (user && inAuthGroup) {
       router.replace('/(tabs)/');
     } else if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)/splash');
     }
   }, [user, segments, loading, router]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
+  // Envolvemos el estado de carga (loader) y la aplicación con el Provider
   return (
-   
-      <Slot /> 
-    
+    <SafeAreaProvider>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" />
+        </View>
+      ) : (
+        <Slot />
+      )}
+    </SafeAreaProvider>
   );
 }

@@ -6,4 +6,7 @@ export const styles = {
   buttonRow: "flex-row gap-2 mt-2",
   houseItem: "border-b border-gray-300 p-2 flex-row justify-between items-center ",
   textInput: "my-1 rounded-md border border-gray-300 p-2  ",
+  loginPage: " ",
+  loginTitle: "text-4xl font-bold mb-1  ",
+  loginDescription: " font-bold mb-1 text-gray-400 ",
 };

@@ -3,16 +3,12 @@ import { doc, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 
 export const authService = {
-  async getUserRole(userId: string) {
+  async getUserRole(userId: string): Promise<'user' | 'admin' | 'superadmin'> {
     try {
-      console.log('Checking role for user:', userId);
       const userDoc = await getDoc(doc(db, 'users', userId));
-      console.log('User doc exists:', userDoc.exists());
-
       if (userDoc.exists()) {
         const data = userDoc.data();
-        console.log('User data:', data);
-        return data.role || 'user';
+        return (data.role as 'user' | 'admin' | 'superadmin') || 'user';
       }
       return 'user';
     } catch (error) {
@@ -22,9 +18,7 @@ export const authService = {
   },
 
   getCurrentUser() {
-    const user = auth.currentUser;
-    console.log('getCurrentUser:', user?.email);
-    return user;
+    return auth.currentUser;
   },
 
   async logout() {
@@ -35,5 +29,14 @@ export const authService = {
       console.error('Error al cerrar sesión:', error);
       throw error;
     }
-  }
+  },
+
+  // 🔹 Extra: utilidades para verificar roles
+  isAdmin(role?: string) {
+    return role === 'admin' || role === 'superadmin';
+  },
+
+  isSuperAdmin(role?: string) {
+    return role === 'superadmin';
+  },
 };

@@ -1,15 +1,14 @@
-
 import { View, TextInput, TextInputProps, Pressable, Text } from 'react-native';
 import { clsx } from 'clsx';
-import { ReactNode, useState } from 'react';
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 type Props = TextInputProps & {
-  iconLeft?: ReactNode;
-  iconRight?: ReactNode;
+  iconLeft?: string;   // ← ahora recibe el NOMBRE del ícono
+  iconRight?: string;  // ← igual aquí
   fullWidth?: boolean;
   className?: string;
-  isPassword?: boolean; // <- NUEVA PROP
+  isPassword?: boolean;
 };
 
 export function CustomTextInput({
@@ -28,38 +27,47 @@ export function CustomTextInput({
   return (
     <View
       className={clsx(
-        'flex-col   ',
+        'flex-col',
         fullWidth ? 'w-full' : '',
         className
       )}>
-      <Text className=' ps-2 text-sm text-gray-500'>{props.placeholder}</Text>
-      <View className='flex-row items-center rounded-md border  border-gray-300 bg-white  px-2 '>
-        {iconLeft && <View className="mr-2">{iconLeft}</View>}
+     {/*<Text className='ps-2 text-sm text-gray-500'>{props.placeholder}</Text> */} 
+
+      <View className='flex-row items-center h-12 rounded-lg bg-gris2 px-2.5 overflow-visible'>
+        {iconLeft && (
+          <Ionicons
+            name={iconLeft as any}
+            size={22}
+            color="#7b00ff"
+            style={{ marginRight: 8 }}
+          />
+        )}
+
         <TextInput
-          className={clsx('flex-1 text-gray-900  ')}
-          placeholderTextColor={'#6B7280'}
+          className='flex-1 text-gray-900'
+          placeholderTextColor={ '#9c9c9c'}
           secureTextEntry={isPassword && !showPassword ? true : secureTextEntry}
           {...props}
-          placeholder=''
+          
         />
+
         {isPassword ? (
           <Pressable onPress={() => setShowPassword((prev) => !prev)}>
-            {showPassword ? (
-              <Ionicons
-                name="eye-outline"
-                size={22}
-                color={'#fff'}
-              />
-            ) : (
-              <Ionicons
-                name="eye-off-outline"
-                size={22}
-                color={'#fff'}
-              />
-            )}
+            <Ionicons
+              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+              size={22}
+              color="#7b00ff"
+            />
           </Pressable>
         ) : (
-          iconRight && <View className="ml-2">{iconRight}</View>
+          iconRight && (
+            <Ionicons
+              name={iconRight as any}
+              size={22}
+              color="#7b00ff"
+              style={{ marginLeft: 8 }}
+            />
+          )
         )}
       </View>
     </View>
