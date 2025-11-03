@@ -9,6 +9,7 @@ import { getTerritoryStatus } from '~/utils/territoryStatus';
 import { FILTER_OPTIONS, FilterOption } from '~/types/FilterOption';
 import { useTerritory } from '~/hooks/useTerritory';
 import { FilterSortBottomSheet, SortOption } from 'components/FilterSortBottomSheet';
+import { styles } from 'components/styles';
 const formatDate = (timestamp: any) => {
   if (!timestamp) return null;
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -70,10 +71,10 @@ export default function Territories() {
     );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className={styles.SAV}>
       {/* Header */}
-      <View className="bg-white px-4 py-2 shadow">
-        <Text className="mb-4 text-center text-3xl font-bold">Territorios</Text>
+      <View className={styles.containerPage}>
+        <Text className={styles.pageTitle}>Territorios</Text>
 
         <View>
           {/* Buscador */}

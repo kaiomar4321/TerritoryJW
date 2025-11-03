@@ -14,7 +14,6 @@ import { usePermissions } from '~/hooks/usePermissions';
 import { CreateGroupModal } from 'components/CreateGroupModal';
 
 export default function Profile() {
-  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const { userData, updateUser, loading } = useUser();
   const [isEditing, setIsEditing] = useState(false);
@@ -141,13 +140,7 @@ export default function Profile() {
           />
         </MotiView>
       )}
-      <CustomButton
-        text="agregar Grupo"
-        onPress={() => {
-          setIsModalVisible(true);
-        }}
-      />
-      <CreateGroupModal visible={isModalVisible} onClose={() => setIsModalVisible(false)} />
+
 
       <View className="">
         <CustomButton

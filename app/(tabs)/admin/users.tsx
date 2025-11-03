@@ -5,7 +5,8 @@ import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/fire
 import { auth } from '~/config/firebase';
 import { useUser } from '~/hooks/useUser';
 import { userService } from '~/services/userService';
-import { AssignTerritoryModal } from 'components/AssignTerritoryModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { styles } from 'components/styles';
 
 const db = getFirestore();
 
@@ -13,7 +14,6 @@ export default function UsersScreen() {
   const { userData } = useUser();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -70,66 +70,56 @@ export default function UsersScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center">
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#6d28d9" />
-        <Text className="text-gray-500 mt-2">Cargando usuarios...</Text>
+        <Text className="mt-2 text-gray-500">Cargando usuarios...</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-white p-4">
-      <Text className="text-xl font-bold text-gray-800 mb-4">Lista de usuarios</Text>
+    <SafeAreaView className={styles.SAV}>
+      <View className={styles.containerPage}>
+        <Text className={styles.pageTitle}>Usuarios</Text>
 
-      <FlatList
-        data={users}
-        keyExtractor={(item) => item.uid}
-        renderItem={({ item }) => (
-          <View
-            key={item.uid}
-            className="flex-row justify-between items-center border-b border-gray-200 py-3"
-          >
-            <View>
-              <Text className="text-gray-900 font-semibold">{item.displayName || 'Sin nombre'}</Text>
-              <Text className="text-gray-600 text-sm">{item.email}</Text>
-              <Text className="text-xs text-purple-600 mt-1">Rol: {item.role}</Text>
-            </View>
+        <FlatList
+          data={users}
+          keyExtractor={(item) => item.uid}
+          renderItem={({ item }) => (
+            <View
+              key={item.uid}
+              className="flex-row rounded-2xl shadow-sm items-center justify-between border-b border-gray-200 p-3 bg-white mb-1">
+              <View>
+                <Text className="font-semibold text-gray-900">
+                  {item.displayName || 'Sin nombre'}
+                </Text>
+                
+                <Text className="text-sm text-gray-600">{item.email}</Text>
+                <Text className="mt-1 text-xs text-purple-600">Rol: {item.role}</Text>
+              </View>
 
-            <View className="flex-row space-x-3">
-              {/* 🔹 Cambiar rol */}
-              {(userData?.role === 'superadmin' ||
-                (userData?.role === 'admin' && item.role === 'user')) &&
-                item.uid !== auth.currentUser?.uid && (
-                  <TouchableOpacity onPress={() => handleChangeRole(item.uid, item.role)}>
-                    <Ionicons name="swap-horizontal-outline" size={22} color="#6d28d9" />
+              <View className="flex-row space-x-3">
+                {/* 🔹 Cambiar rol */}
+                {(userData?.role === 'superadmin' ||
+                  (userData?.role === 'admin' && item.role === 'user')) &&
+                  item.uid !== auth.currentUser?.uid && (
+                    <TouchableOpacity onPress={() => handleChangeRole(item.uid, item.role)}>
+                      <Ionicons name="swap-horizontal-outline" size={22} color="#6d28d9" />
+                    </TouchableOpacity>
+                  )}
+
+
+                {/* 🔹 Eliminar */}
+                {userData?.role === 'superadmin' && item.uid !== auth.currentUser?.uid && (
+                  <TouchableOpacity onPress={() => handleDeleteUser(item.uid)}>
+                    <Ionicons name="trash-outline" size={22} color="#dc2626" />
                   </TouchableOpacity>
                 )}
-
-              {/* 🔹 Asignar territorio (solo superadmin) */}
-              {userData?.role === 'superadmin' && (
-                <TouchableOpacity onPress={() => setSelectedUser(item.uid)}>
-                  <Ionicons name="map-outline" size={22} color="#16a34a" />
-                </TouchableOpacity>
-              )}
-
-              {/* 🔹 Eliminar */}
-              {userData?.role === 'superadmin' && item.uid !== auth.currentUser?.uid && (
-                <TouchableOpacity onPress={() => handleDeleteUser(item.uid)}>
-                  <Ionicons name="trash-outline" size={22} color="#dc2626" />
-                </TouchableOpacity>
-              )}
+              </View>
             </View>
-          </View>
-        )}
-      />
-
-      {selectedUser && (
-        <AssignTerritoryModal
-          visible={!!selectedUser}
-          onClose={() => setSelectedUser(null)}
-          
+          )}
         />
-      )}
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }

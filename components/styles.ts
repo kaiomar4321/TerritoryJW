@@ -9,4 +9,7 @@ export const styles = {
   loginPage: " ",
   loginTitle: "text-4xl font-bold mb-1  ",
   loginDescription: " font-bold mb-1 text-gray-400 ",
+  pageTitle:"mb-4 text-center text-2xl font-bold",
+  containerPage:" px-4 py-2 shadow",
+  SAV:"flex-1 bg-gray-100",
 };

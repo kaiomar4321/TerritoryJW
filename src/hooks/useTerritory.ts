@@ -4,7 +4,7 @@ import { territoriesFetcher } from '../services/firestoreFetcher';
 import { auth } from '../config/firebase';
 import { Territory } from '~/types/Territory';
 import { MapPressEvent } from 'react-native-maps';
-import { useOfflineSWR } from './useOfflineSWR'; // 👈 nuevo hook
+import { useOfflineSWR } from './useOfflineSWR';
 import { getTerritoryStatus } from '~/utils/territoryStatus';
 import { territoryUtils } from '~/utils/territoryUtils';
 
@@ -14,8 +14,6 @@ export const useTerritory = () => {
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
-
-  // Estados locales para operaciones batch
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
 
@@ -29,7 +27,7 @@ export const useTerritory = () => {
     revalidateOnReconnect: true,
     dedupingInterval: 2000,
     errorRetryCount: 3,
-    ttl: 1000 * 60 * 60 * 24, // 24 horas
+    ttl: 1000 * 60 * 60 * 24, // 24h
   });
 
   useEffect(() => {
@@ -38,46 +36,53 @@ export const useTerritory = () => {
 
   useEffect(() => {
     (async () => {
-      // cargar local siempre primero
+      console.log('🗺️ [useTerritory] Iniciando carga de territorios...');
       const local = await territoryService.getLocalTerritories();
+      console.log(`📦 [LocalDB] ${local.length} territorios cargados desde almacenamiento local`);
       mutateTerritories(local, false);
 
-      // luego intentar sync si hay internet
-      await territoryService.syncAll();
+      console.log('🌐 [Sync] Intentando sincronizar territorios desde Firestore...');
+      const synced = await territoryService.syncAll();
+      console.log(`✅ [Sync] ${synced.length} territorios sincronizados desde Firestore`);
+      mutateTerritories(synced, false);
     })();
-  }, []);
+  }, [mutateTerritories]);
 
   const saveTerritory = useCallback(async () => {
-    if (drawingCoordinates.length >= 3) {
-      if (auth.currentUser) {
-        try {
-          await territoryService.saveTerritory(drawingCoordinates, auth.currentUser.uid);
-          setDrawingCoordinates([]);
-          setIsEditMode(false);
-        } catch (error) {
-          console.error('Error saving territory:', error);
-          alert('Error al guardar el territorio.');
-        }
-      } else {
-        alert('Usuario no autenticado. No se puede guardar el territorio.');
-      }
-    } else {
+    if (drawingCoordinates.length < 3) {
       alert('Se necesitan al menos 3 puntos para crear un territorio');
+      return;
+    }
+    if (!auth.currentUser) {
+      alert('Usuario no autenticado.');
+      return;
+    }
+
+    try {
+      console.log('📝 [saveTerritory] Guardando nuevo territorio...');
+      await territoryService.saveTerritory(drawingCoordinates, auth.currentUser.uid);
+      console.log('✅ [saveTerritory] Territorio guardado correctamente');
+      setDrawingCoordinates([]);
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('❌ [saveTerritory] Error:', error);
+      alert('Error al guardar el territorio.');
     }
   }, [drawingCoordinates]);
 
   const allReady = useMemo(() => territoryUtils.areAllReady(territories), [territories]);
-
   const allCompleted = useMemo(() => territoryUtils.areAllCompleted(territories), [territories]);
 
   const markAllReady = async () => {
     try {
+      console.log('⚙️ [markAllReady] Marcando todos los territorios como listos...');
       setIsBatchLoading(true);
       setBatchError(null);
       await territoryService.markAllAsReady(territories);
       await refreshTerritories();
+      console.log('✅ [markAllReady] Todos marcados como listos.');
     } catch (error) {
-      console.error('Error al marcar como listos:', error);
+      console.error('❌ [markAllReady] Error:', error);
       setBatchError('No se pudieron marcar los territorios como listos');
     } finally {
       setIsBatchLoading(false);
@@ -86,12 +91,14 @@ export const useTerritory = () => {
 
   const markAllCompleted = async () => {
     try {
+      console.log('⚙️ [markAllCompleted] Marcando todos como completados...');
       setIsBatchLoading(true);
       setBatchError(null);
       await territoryService.markAllAsCompleted(territories);
       await refreshTerritories();
+      console.log('✅ [markAllCompleted] Todos marcados como completados.');
     } catch (error) {
-      console.error('Error al marcar como completados:', error);
+      console.error('❌ [markAllCompleted] Error:', error);
       setBatchError('No se pudieron marcar los territorios como completados');
     } finally {
       setIsBatchLoading(false);
@@ -108,21 +115,21 @@ export const useTerritory = () => {
   const updateTerritory = useCallback(
     async (id: string, updates: Partial<Territory>) => {
       try {
+        console.log(`📝 [updateTerritory] Actualizando territorio ${id}...`);
         await mutateTerritories(
           async (current) => {
-            // 🔹 actualiza localmente
             if (!current) return current;
             const newData = current.map((t) => (t.id === id ? { ...t, ...updates } : t));
-            // 🔹 dispara update en Firestore
             await territoryService.updateTerritory(id, updates);
             return newData;
           },
-          { revalidate: false } // 👈 evita doble request inmediato
+          { revalidate: false }
         );
+        console.log('✅ [updateTerritory] Territorio actualizado');
         setSelectedTerritory(null);
       } catch (error) {
+        console.error('❌ [updateTerritory] Error:', error);
         alert('Error al actualizar el territorio.');
-        console.log(error);
       }
     },
     [mutateTerritories]
@@ -132,25 +139,16 @@ export const useTerritory = () => {
     async (id: string) => {
       if (!id) return;
       try {
-        // 🔹 eliminar localmente con mutate
+        console.log(`🗑️ [deleteTerritory] Eliminando territorio ${id}...`);
         await mutateTerritories(
-          async (current) => {
-            if (!current) return current;
-            const newData = current.filter((t) => t.id !== id);
-            return newData;
-          },
-          { revalidate: false } // evitar re-fetch inmediato
+          async (current) => current?.filter((t) => t.id !== id),
+          { revalidate: false }
         );
-
-        // 🔹 eliminar en Firestore
         await territoryService.deleteTerritory(id);
-
-        // 🔹 limpiar selección si era el eliminado
-        if (selectedTerritory?.id === id) {
-          setSelectedTerritory(null);
-        }
+        console.log('✅ [deleteTerritory] Territorio eliminado');
+        if (selectedTerritory?.id === id) setSelectedTerritory(null);
       } catch (error) {
-        console.error('Error eliminando el territorio:', error);
+        console.error('❌ [deleteTerritory] Error:', error);
         alert('No se pudo eliminar el territorio.');
       }
     },
@@ -163,35 +161,21 @@ export const useTerritory = () => {
         const coordinate = event.nativeEvent.coordinate;
         if (coordinate?.latitude && coordinate?.longitude) {
           setDrawingCoordinates((prev) => [...prev, coordinate]);
+          console.log('📍 [handleMapPress] Punto agregado:', coordinate);
         }
       }
     },
     [isEditMode]
   );
 
-  const onNoteChange = useCallback(
-    async (note: string) => {
-      if (!selectedTerritory) return;
-      try {
-        await updateTerritory(selectedTerritory.id, { note });
-      } catch (error) {
-        console.error('Error actualizando la nota del territorio:', error);
-      }
-    },
-    [selectedTerritory, updateTerritory]
-  );
-
-  const filteredTerritories = useMemo(() => {
-    if (!selectedFilter) return territoriesWithStatus;
-    return territoriesWithStatus.filter((t) => t.status === selectedFilter);
-  }, [territoriesWithStatus, selectedFilter]);
-
-  const refreshTerritories = useCallback(() => {
-    return mutateTerritories();
+  const refreshTerritories = useCallback(async () => {
+    console.log('🔄 [refreshTerritories] Actualizando datos...');
+    await mutateTerritories();
   }, [mutateTerritories]);
 
   const assignToGroup = useCallback(
     async (territoryId: string, groupId: string) => {
+      console.log(`👥 [assignToGroup] Asignando territorio ${territoryId} al grupo ${groupId}`);
       await updateTerritory(territoryId, { groupId });
     },
     [updateTerritory]
@@ -199,6 +183,7 @@ export const useTerritory = () => {
 
   const unassignFromGroup = useCallback(
     async (territoryId: string) => {
+      console.log(`🚫 [unassignFromGroup] Quitando grupo del territorio ${territoryId}`);
       await updateTerritory(territoryId, { groupId: null });
     },
     [updateTerritory]
@@ -208,11 +193,11 @@ export const useTerritory = () => {
     assignToGroup,
     unassignFromGroup,
     territories,
-    filteredTerritories,
-    isLoading, // del useOfflineSWR
-    error, // del useOfflineSWR
-    isBatchLoading, // para operaciones batch
-    batchError, // para errores de operaciones batch
+    filteredTerritories: territoriesWithStatus,
+    isLoading,
+    error,
+    isBatchLoading,
+    batchError,
     isEditMode,
     setIsEditMode,
     drawingCoordinates,
@@ -225,7 +210,6 @@ export const useTerritory = () => {
     saveTerritory,
     updateTerritory,
     handleMapPress,
-    onNoteChange,
     refreshTerritories,
     allReady,
     allCompleted,

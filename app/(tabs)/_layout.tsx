@@ -25,15 +25,12 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: '#6d28d9',
         tabBarInactiveTintColor: '#6b7280',
-      }}
-    >
+      }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Mapa',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="map" size={size} color={color} />,
         }}
       />
 
@@ -50,7 +47,7 @@ export default function TabsLayout() {
       {/* ✅ Solo visible si es admin o superadmin */}
       {(role === 'admin' || role === 'superadmin') && (
         <Tabs.Screen
-          name="users"
+          name="admin/users"
           options={{
             title: 'Usuarios',
             tabBarIcon: ({ color, size }) => (
@@ -60,6 +57,24 @@ export default function TabsLayout() {
         />
       )}
 
+      {(role === 'admin' || role === 'superadmin') && (
+        <Tabs.Screen
+          name="admin/groups"
+          options={{
+            title: 'Grupos',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="grid-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+
+      <Tabs.Screen
+        name="admin/group/[id]"
+        options={{
+          href: null, // Esto oculta la pantalla del tab bar
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

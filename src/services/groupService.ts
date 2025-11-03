@@ -1,124 +1,120 @@
-// groupService.ts
-import { db } from "../config/firebase";
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
-import { mutate } from "swr";
-import NetInfo from "@react-native-community/netinfo";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { db } from '~/config/firebase';
 import { localDB } from './localDB';
 import { Group } from '~/types/Group';
 
-export const GROUPS_KEY = 'firestore:groups';
-const LOCAL_STORAGE_KEY = 'groups';
+export const GROUPS_KEY = 'groups';
 
 export const groupService = {
-  // Obtener grupos locales
+  // 🔹 Obtener grupos locales
   async getLocalGroups(): Promise<Group[]> {
-    return await localDB.getCollection<Group>(LOCAL_STORAGE_KEY);
+    return await localDB.getCollection<Group>(GROUPS_KEY);
   },
 
-  // Guardar grupos locales
+  // 🔹 Guardar grupos locales
   async saveLocalGroups(groups: Group[]) {
-    await localDB.saveCollection<Group>(LOCAL_STORAGE_KEY, groups);
+    await localDB.saveCollection<Group>(GROUPS_KEY, groups);
   },
 
-  // Obtener todos
-  async getAll(): Promise<Group[]> {
-    return await this.getLocalGroups();
+  // 🔹 Obtener todos los grupos de Firestore
+  async getRemoteGroups(): Promise<Group[]> {
+    const snapshot = await getDocs(collection(db, 'groups'));
+    return snapshot.docs.map(
+      (docSnap) => ({ id: docSnap.id, ...docSnap.data() } as Group)
+    );
   },
 
-  // 🔥 Guardar un grupo (CON FIREBASE)
-  async saveGroup(groupData: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>): Promise<Group> {
-    // ✅ Checar conexión
-    const state = await NetInfo.fetch();
-    if (!state.isConnected) {
-      console.log("🚫 No hay internet, no se guardó en Firestore");
-      throw new Error("No hay conexión a internet");
+  // 🔹 Sincronizar (solo si hay cambios)
+  async syncAll() {
+    const [local, remote] = await Promise.all([
+      this.getLocalGroups(),
+      this.getRemoteGroups(),
+    ]);
+
+    // Si son diferentes (por contenido o cantidad)
+    const changed = JSON.stringify(local) !== JSON.stringify(remote);
+
+    if (changed) {
+      console.log('🔄 Sincronizando grupos locales con Firestore');
+      await this.saveLocalGroups(remote);
     }
+  },
 
-    const newGroup: Omit<Group, 'id'> = {
-      ...groupData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  // 🔹 Crear grupo
+  async saveGroup(group: Omit<Group, 'id' | 'updatedAt'>): Promise<Group> {
+    const data = { ...group, updatedAt: Date.now().toString() };
+    const ref = await addDoc(collection(db, 'groups'), data);
+    const newGroup = { id: ref.id, ...data };
 
-    // 🔥 Guardar en Firebase
-    const docRef = await addDoc(collection(db, "groups"), newGroup);
-    console.log("✅ Grupo guardado en Firestore con id:", docRef.id);
-
-    const savedGroup = { ...newGroup, id: docRef.id };
-    
-    // Guardar localmente también
+    // Guardar localmente
     const local = await this.getLocalGroups();
-    local.push(savedGroup);
-    await this.saveLocalGroups(local);
+    await this.saveLocalGroups([...local, newGroup]);
 
-    mutate(GROUPS_KEY);
-    return savedGroup;
+    return newGroup;
   },
 
-  // 🔥 Actualizar un grupo (CON FIREBASE)
-  async updateGroup(id: string, updates: Partial<Group>): Promise<void> {
-    const local = await this.getLocalGroups();
-    const index = local.findIndex(g => g.id === id);
-    
-    if (index === -1) {
-      throw new Error(`Group with id ${id} not found`);
-    }
-    
-    const updatedGroup = {
-      ...local[index],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    local[index] = updatedGroup;
-    await this.saveLocalGroups(local);
-    mutate(GROUPS_KEY);
+  // 🔹 Actualizar grupo
+  async updateGroup(id: string, updates: Partial<Group>) {
+    const ref = doc(db, 'groups', id);
+    await updateDoc(ref, { ...updates, updatedAt: Date.now().toString() });
 
-    // 🔥 Actualizar en Firebase si hay internet
-    const state = await NetInfo.fetch();
-    if (state.isConnected) {
-      const groupRef = doc(db, "groups", id);
-      await updateDoc(groupRef, { ...updates, updatedAt: new Date().toISOString() });
-      console.log("✏️ Grupo actualizado en Firestore:", id);
-    }
+    const local = await this.getLocalGroups();
+    const updated = local.map((g) =>
+      g.id === id ? { ...g, ...updates, updatedAt: Date.now().toString() } : g
+    );
+    await this.saveLocalGroups(updated);
   },
 
-  // 🔥 Eliminar un grupo (CON FIREBASE)
-  async deleteGroup(id: string): Promise<void> {
+  // 🔹 Eliminar grupo
+  async deleteGroup(id: string) {
+    await deleteDoc(doc(db, 'groups', id));
+
     const local = await this.getLocalGroups();
-    const filtered = local.filter(g => g.id !== id);
-    
-    if (filtered.length === local.length) {
-      throw new Error(`Group with id ${id} not found`);
-    }
-    
+    const filtered = local.filter((g) => g.id !== id);
     await this.saveLocalGroups(filtered);
-    mutate(GROUPS_KEY, filtered, false);
-
-    // 🔥 Eliminar de Firebase si hay internet
-    const state = await NetInfo.fetch();
-    if (state.isConnected) {
-      const groupRef = doc(db, "groups", id);
-      await deleteDoc(groupRef);
-      console.log("🗑️ Grupo eliminado de Firestore:", id);
-    }
   },
 
-  // 🔄 Sincronizar con Firebase
-  async syncAll(): Promise<Group[]> {
-    const state = await NetInfo.fetch();
-    if (!state.isConnected) {
-      console.log("📦 Usando grupos locales (sin internet)");
-      return this.getLocalGroups();
+  // 🔹 Asignar territorio a grupo
+async assignTerritory(groupId: string, territoryId: string) {
+    const groupRef = doc(db, 'groups', groupId);
+    const snap = await getDoc(groupRef);
+
+    if (!snap.exists()) throw new Error('El grupo no existe');
+
+    const data = snap.data();
+    const current = Array.isArray(data.territoryIds) ? data.territoryIds : [];
+
+    if (current.includes(territoryId)) {
+      console.log('⚠️ El territorio ya está asignado a este grupo');
+      return;
     }
 
-    // 🔥 Descargar desde Firebase
-    const snapshot = await getDocs(collection(db, "groups"));
-    const remote = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Group[];
-    console.log("⬇️ Grupos cargados desde Firestore:", remote.length);
-    
-    await this.saveLocalGroups(remote);
-    mutate(GROUPS_KEY, remote, false);
-    return remote;
+    await updateDoc(groupRef, {
+      territoryIds: [...current, territoryId],
+    });
+
+    // ✅ También puedes marcar en Firestore que el territorio pertenece al grupo
+    const territoryRef = doc(db, 'territories', territoryId);
+    await updateDoc(territoryRef, { groupId });
   },
+
+  // 🔹 Quitar territorio del grupo
+   async unassignTerritory(groupId: string, territoryId: string) {
+    const groupRef = doc(db, 'groups', groupId);
+    const snap = await getDoc(groupRef);
+
+    if (!snap.exists()) throw new Error('El grupo no existe');
+
+    const data = snap.data();
+    const current = Array.isArray(data.territoryIds) ? data.territoryIds : [];
+
+    await updateDoc(groupRef, {
+      territoryIds: current.filter((id) => id !== territoryId),
+    });
+
+    // ❌ Liberar el territorio
+    const territoryRef = doc(db, 'territories', territoryId);
+    await updateDoc(territoryRef, { groupId: null });
+  },
+
 };

@@ -1,88 +1,88 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import React from 'react';
 import { useTerritory } from '~/hooks/useTerritory';
 import { useGroup } from '~/hooks/useGroup';
-
-interface Props {
+interface AssignTerritoryModalProps {
   visible: boolean;
   onClose: () => void;
+  idGroup: string;
 }
 
-export const AssignTerritoryModal = ({ visible, onClose }: Props) => {
-  const { territories, assignToGroup, unassignFromGroup } = useTerritory();
-  const { groups } = useGroup();
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-
-  if (!visible) return null;
+const AssignTerritoryModal = ({ visible, onClose, idGroup }: AssignTerritoryModalProps) => {
+  const { territories, isLoading, error } = useTerritory();
+  const { assignTerritory } = useGroup()
+  const getTerritoryStatus = (territory: any) => {
+    if (!territory.groupId) return 'available';
+    if (territory.groupId === idGroup) return 'selected';
+    return 'occupied';
+  };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View className="flex-1 justify-end bg-black/40">
-        <View className="max-h-[80%] rounded-t-2xl bg-white p-4">
-          <Text className="mb-3 text-lg font-bold text-gray-800">Asignar territorio a grupo</Text>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 bg-black/50 justify-center items-center">
+        <View className="bg-white rounded-xl w-[90%] max-h-[80%] shadow-lg">
+          {/* Header */}
+          <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+            <Text className="text-lg font-bold">Asignar Territorio</Text>
+            <TouchableOpacity onPress={onClose} className="p-1">
+              <Text className="text-2xl text-gray-600">✕</Text>
+            </TouchableOpacity>
+          </View>
 
-          <FlatList
-            data={territories}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View className="flex-row items-center justify-between rounded-lg border-b px-2 py-3">
-                <View>
-                  <Text className="text-base text-gray-800">{item.name}</Text>
-                  {item.groupId && (
-                    <Text className="text-sm text-gray-500">
-                      Grupo asignado: {groups.find((g) => g.id === item.groupId)?.number || 'N/A'}
-                    </Text>
-                  )}
-                </View>
-
-                <TouchableOpacity
-                  onPress={() =>
-                    item.groupId
-                      ? unassignFromGroup(item.id)
-                      : selectedGroup
-                      ? assignToGroup(item.id, selectedGroup)
-                      : alert('Selecciona un grupo primero')
-                  }
-                  className={`rounded-md px-3 py-1 ${
-                    item.groupId ? 'bg-red-100' : 'bg-green-100'
-                  }`}
+          {/* Content */}
+          <ScrollView className="p-4">
+            {isLoading && <Text className="text-center text-gray-600 my-5">Cargando...</Text>}
+            {error && <Text className="text-center text-red-600 my-5">Error: {error}</Text>}
+            
+            {territories.map((territory) => {
+              const status = getTerritoryStatus(territory);
+              const isDisabled = status === 'occupied';
+              
+              return (
+                <TouchableOpacity 
+                  key={territory.id} 
+                  className={`
+                    p-4 rounded-lg mb-3
+                    ${status === 'available' ? 'bg-gray-50' : ''}
+                    ${status === 'selected' ? 'bg-gray-50 border-2 border-purple-500' : ''}
+                    ${status === 'occupied' ? 'bg-gray-200 opacity-50' : ''}
+                  `}
+                  disabled={isDisabled}
+                  onPress={() => {
+                    if (!isDisabled) {
+                      console.log('Territorio seleccionado:', territory);
+                      assignTerritory( idGroup, territory.id)
+                    }
+                  }}
                 >
-                  <Text className={`font-semibold ${item.groupId ? 'text-red-600' : 'text-green-600'}`}>
-                    {item.groupId ? 'Quitar' : 'Asignar'}
+                  <Text className={`
+                    text-base font-semibold mb-1
+                    ${status === 'occupied' ? 'text-gray-400' : 'text-gray-900'}
+                  `}>
+                    {territory.name}
                   </Text>
+                  <Text className={`
+                    text-sm
+                    ${status === 'occupied' ? 'text-gray-400' : 'text-gray-600'}
+                  `}>
+                    {territory.groupId ? `Grupo: ${territory.groupId}` : 'Sin grupo asignado'}
+                  </Text>
+                  {status === 'selected' && (
+                    <Text className="text-xs text-purple-600 mt-1">✓ Ya asignado a este grupo</Text>
+                  )}
                 </TouchableOpacity>
-              </View>
-            )}
-          />
-
-          <Text className="mt-4 mb-2 font-semibold text-gray-700">Seleccionar grupo:</Text>
-          <FlatList
-            data={groups}
-            horizontal
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => setSelectedGroup(item.id)}
-                className={`mr-2 rounded-md border px-3 py-1 ${
-                  selectedGroup === item.id ? 'bg-purple-600' : 'bg-gray-100'
-                }`}
-              >
-                <Text
-                  className={`font-semibold ${
-                    selectedGroup === item.id ? 'text-white' : 'text-gray-700'
-                  }`}
-                >
-                  Grupo {item.number}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-
-          <TouchableOpacity onPress={onClose} className="mt-4 items-center rounded-xl bg-purple-600 py-2">
-            <Text className="font-semibold text-white">Cerrar</Text>
-          </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </View>
     </Modal>
   );
 };
+
+export default AssignTerritoryModal;
