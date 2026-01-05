@@ -1,5 +1,5 @@
-import { View, Text, ActivityIndicator } from 'react-native';
-import MapView, { Polygon, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { View, ActivityIndicator } from 'react-native';
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { useLocalSearchParams } from 'expo-router';
@@ -7,13 +7,14 @@ import { useLocation } from '~/hooks/useLocation';
 import { useTerritory } from '~/hooks/useTerritory';
 import { useHouses } from '~/hooks/useHouses';
 import { usePermissions } from '~/hooks/usePermissions';
-import { getTerritoryStatus } from '~/utils/territoryStatus';
 import { getPolygonCenter } from '~/utils/mapUtils';
 
 import TerritoryDetails from 'components/TerritoryDetails/TerritoryDetails';
 import SquareButton from 'components/Buttons/SquareButton';
 import SelectedHouse from 'components/SelectedHouse';
 import FilterButtons from 'components/FilterButtons';
+import ThemedText from 'components/ThemedText';
+import TerritoryPolygons from 'components/Map/TerritoryPolygons';
 
 
 export default function TabIndex() {
@@ -31,7 +32,8 @@ export default function TabIndex() {
     updateTerritory,
     selectedFilter,
     setSelectedFilter,
-    deleteTerritory
+    deleteTerritory,
+    restartTerritory
     
   } = useTerritory();
 
@@ -70,7 +72,7 @@ export default function TabIndex() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View className="flex-1 overflow-hidden rounded-3xl border-2 border-white ">
+      <View className="flex-1 overflow-hidden border-2 border-white dark:border-gray-700 ">
         <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
@@ -107,48 +109,17 @@ export default function TabIndex() {
             )}
 
           {/* Territorios */}
-          {filteredTerritories.map((territory) => {
-            // Determinar si este territorio debe tener transparencia reducida
-            const isCurrentSelected = selectedTerritory?.id === territory.id;
-            const hasSelectedTerritory = selectedTerritory !== null;
-            const shouldDimTerritory = hasSelectedTerritory && !isCurrentSelected;
-            
-            // Opacidad base del color del territorio
-            const baseOpacity = shouldDimTerritory ? '20' : '55'; // 30% para no seleccionados, 55% normal
-            
-            return (
-              <React.Fragment key={territory.id}>
-                <Polygon
-                  coordinates={territory.coordinates}
-                  strokeColor={`${getTerritoryStatus(territory).colorHex}${baseOpacity+20}`}
-                  strokeWidth={isCurrentSelected ? 3 : 1} // Borde más grueso para el seleccionado
-                  fillColor={`${getTerritoryStatus(territory).colorHex}${baseOpacity}`}
-                  tappable
-                  onPress={(e) => {
-                    if (!isAddingHouse) {
-                      setSelectedTerritory(territory);
-                      setSelectedHouse(null);
-                      focusOnTerritory(territory);
-                    } else {
-                      handleAddingHouse(true, e.nativeEvent.coordinate);
-                    }
-                  }}
-                />
-                {territory.coordinates?.length > 0 && (
-                  <Marker coordinate={getPolygonCenter(territory.coordinates)}>
-                    <View 
-                      className="rounded-full bg-white px-1.5 py-0.5"
-                      style={{ 
-                        opacity: shouldDimTerritory ? 0.5 : 1 // También dim el número del territorio
-                      }}
-                    >
-                      <Text className="text-xs font-bold">{territory.number}</Text>
-                    </View>
-                  </Marker>
-                )}
-              </React.Fragment>
-            );
-          })}
+          <TerritoryPolygons
+            territories={filteredTerritories}
+            selectedTerritory={selectedTerritory}
+            onTerritoryPress={(territory) => {
+              setSelectedTerritory(territory);
+              setSelectedHouse(null);
+              focusOnTerritory(territory);
+            }}
+            isAddingHouse={isAddingHouse}
+            onAddingHouse={handleAddingHouse}
+          />
 
           {/* Marcador de casa en edición */}
           {isAddingHouse && currentHouseLocation && <Marker coordinate={currentHouseLocation} />}
@@ -203,6 +174,7 @@ export default function TabIndex() {
           }}
           onUpdate={updateTerritory}
           onAddingHouse={handleAddingHouse}
+          onRestart={restartTerritory}
           currentLocation={currentHouseLocation}
           onDelete={deleteTerritory}
         />
@@ -214,7 +186,7 @@ export default function TabIndex() {
 
         {/* Modo admin */}
         {isAdmin && !selectedTerritory && (
-          <View className="absolute right-2 top-5 gap-2 rounded-xl bg-white p-2 shadow-lg ">
+          <View className="absolute right-2 top-5 gap-2 rounded-xl bg-white dark:bg-black2 p-2 shadow-lg ">
             <SquareButton
               text={!isEditMode ? 'Nuevo Territorio' : 'Cancelar'}
               icon={!isEditMode ? 'add-circle-outline' : 'close-circle-outline'}
@@ -223,12 +195,12 @@ export default function TabIndex() {
 
             {isEditMode && (
               <View className="rounded bg-black/70 p-2.5 absolute -left-44 top-2 w-40">
-                <Text className="text-center text-xs text-white">
+                <ThemedText className="text-center text-xs text-white">
                   Toca el mapa para crear puntos
-                </Text>
-                <Text className="text-center text-xs text-white">
+                </ThemedText>
+                <ThemedText className="text-center text-xs text-white">
                   Puntos: {drawingCoordinates.length}/3
-                </Text>
+                </ThemedText>
               </View>
             )}
 

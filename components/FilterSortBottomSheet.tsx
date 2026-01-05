@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, FlatList, ScrollView, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ScrollView, Dimensions, useColorScheme } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
+import ThemedText from './ThemedText';
 import { FILTER_OPTIONS, FilterOption } from '~/types/FilterOption';
 
 export type SortOption = 'recent' | 'oldest' | 'ascNumber' | 'descNumber' | null;
@@ -35,6 +36,8 @@ export const FilterSortBottomSheet: React.FC<Props> = ({
   onSelectFilter,
   onSelectSort,
 }) => {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   return (
     <AnimatePresence>
       {visible && (
@@ -59,13 +62,13 @@ export const FilterSortBottomSheet: React.FC<Props> = ({
               bottom: 0,
               width: '100%',
               maxHeight: '70%',
-              backgroundColor: 'white',
+              backgroundColor: isDark ? '#191919' : 'white',
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
             }}>
             <ScrollView className="p-4">
               {/* Estado */}
-              <Text className="mb-2 text-lg font-bold text-gray-800">Estado</Text>
+              <ThemedText className="mb-2 text-lg font-bold">Estado</ThemedText>
               {[
                 { id: null, label: 'Todos', icon: 'options', colorHex: '#6B7280' },
                 ...FILTER_OPTIONS,
@@ -74,32 +77,32 @@ export const FilterSortBottomSheet: React.FC<Props> = ({
                   key={String(item.id)}
                   onPress={() => onSelectFilter(item.id as FilterOption | null)}
                   className={`flex-row items-center gap-2 rounded-lg p-3 ${
-                    filterValue === item.id ? 'bg-gray-200' : ''
+                    filterValue === item.id ? 'bg-gray-200 dark:bg-gray-700' : ''
                   }`}>
                   <Ionicons name={item.icon as any} size={20} color={item.colorHex} />
-                  <Text className="text-gray-800">{item.label}</Text>
+                  <Text className="text-gray-800 dark:text-gray-200">{item.label}</Text>
                 </TouchableOpacity>
               ))}
 
               {/* Fecha */}
-              <Text className="mb-2 mt-4 text-lg font-bold text-gray-800">Fecha</Text>
+              <ThemedText className="mb-2 mt-4 text-lg font-bold">Fecha</ThemedText>
               {DATE_SORT_OPTIONS.map((item) => (
                 <TouchableOpacity
                   key={item.value}
                   onPress={() => onSelectSort(item.value as SortOption)}
-                  className={`rounded-lg p-3 ${sortValue === item.value ? 'bg-gray-200' : ''}`}>
-                  <Text className="text-gray-800">{item.label}</Text>
+                  className={`rounded-lg p-3 ${sortValue === item.value ? 'bg-gray-200 dark:bg-gray-700' : ''}`}>
+                  <Text className="text-gray-800 dark:text-gray-200">{item.label}</Text>
                 </TouchableOpacity>
               ))}
 
               {/* Número */}
-              <Text className="mb-2 mt-4 text-lg font-bold text-gray-800">Número</Text>
+              <ThemedText className="mb-2 mt-4 text-lg font-bold">Número</ThemedText>
               {NUMBER_SORT_OPTIONS.map((item) => (
                 <TouchableOpacity
                   key={item.value}
                   onPress={() => onSelectSort(item.value as SortOption)}
-                  className={`rounded-lg p-3 ${sortValue === item.value ? 'bg-gray-200' : ''}`}>
-                  <Text className="text-gray-800">{item.label}</Text>
+                  className={`rounded-lg p-3 ${sortValue === item.value ? 'bg-gray-200 dark:bg-gray-700' : ''}`}>
+                  <Text className="text-gray-800 dark:text-gray-200">{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>

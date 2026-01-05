@@ -1,4 +1,4 @@
-import { View, TextInput, TextInputProps, Pressable, Text } from 'react-native';
+import { View, TextInput, TextInputProps, Pressable, Text, useColorScheme } from 'react-native';
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -23,6 +23,11 @@ export function CustomTextInput({
 }: Props) {
 
   const [showPassword, setShowPassword] = useState(false);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const iconColor = isDark ? '#b89eff' : '#925ffa';
+  const placeholderColor = isDark ? '#6b7280' : '#9c9c9c';
 
   return (
     <View
@@ -33,19 +38,19 @@ export function CustomTextInput({
       )}>
      {/*<Text className='ps-2 text-sm text-gray-500'>{props.placeholder}</Text> */} 
 
-      <View className='flex-row items-center h-12 rounded-lg bg-gris2 px-2.5 overflow-visible'>
+      <View className='flex-row items-center h-12 rounded-lg bg-gris2 dark:bg-black2 px-2.5 overflow-visible'>
         {iconLeft && (
           <Ionicons
             name={iconLeft as any}
             size={22}
-            color="#7b00ff"
+            color={iconColor}
             style={{ marginRight: 8 }}
           />
         )}
 
         <TextInput
-          className='flex-1 text-gray-900'
-          placeholderTextColor={ '#9c9c9c'}
+          className='flex-1 text-gray-900 dark:text-gray-100'
+          placeholderTextColor={placeholderColor}
           secureTextEntry={isPassword && !showPassword ? true : secureTextEntry}
           {...props}
           
@@ -56,7 +61,7 @@ export function CustomTextInput({
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
               size={22}
-              color="#7b00ff"
+              color={iconColor}
             />
           </Pressable>
         ) : (
@@ -64,7 +69,7 @@ export function CustomTextInput({
             <Ionicons
               name={iconRight as any}
               size={22}
-              color="#7b00ff"
+              color={iconColor}
               style={{ marginLeft: 8 }}
             />
           )

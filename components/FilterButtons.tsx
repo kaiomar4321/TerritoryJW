@@ -10,8 +10,8 @@ type Props = {
 
 const FilterButtons: React.FC<Props> = ({ selectedFilter, onFilterChange }) => {
   return (
-    <View className="absolute top-5   z-10   gap-2   p-1 px-2">
-      <ScrollView showsHorizontalScrollIndicator={false} className="  rounded-lg bg-white p-2  ">
+    <View className="absolute top-5 z-10 gap-2 p-1 px-2 right-0">
+      <ScrollView showsHorizontalScrollIndicator={false} className="rounded-lg bg-white dark:bg-black2 p-2">
         {FILTER_OPTIONS.map((option) => (
           <SquareButton
             key={option.id}

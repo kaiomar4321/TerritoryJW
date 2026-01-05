@@ -1,12 +1,15 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MotiView, AnimatePresence } from 'moti';
+import ThemedText from 'components/ThemedText';
 import { styles } from 'components/styles';
 import { CustomButton } from 'components/CustomButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Welcome() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   return (
     <SafeAreaView>
@@ -17,11 +20,11 @@ export default function Welcome() {
             animate={{ opacity: 1, translateY: 0 }}
             exit={{ opacity: 0, translateY: -20 }}
             transition={{ duration: 600 }}
-            className="flex h-full w-full items-start justify-end bg-white p-6 gap-2.5 ">
-            <Text className={styles.loginTitle}>Bienvenido.</Text>
-            <Text className={styles.loginTitle}>
+            className="flex h-full w-full items-start justify-end bg-white dark:bg-black2 p-6 gap-2.5 ">
+            <ThemedText className={styles.loginTitle}>Bienvenido.</ThemedText>
+            <ThemedText className={styles.loginTitle}>
               Puedes iniciar sesion o crear una nueva cuenta
-            </Text>
+            </ThemedText>
 
             <MotiView
               from={{ opacity: 0, translateY: 50 }}

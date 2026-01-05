@@ -13,6 +13,7 @@ type Props = {
   onUpdate: (id: string, data: Partial<Territory>) => Promise<void>;
   onAddingHouse: (isAdding: boolean) => void;
   onDelete: (id: string)=> Promise<void>;
+  onRestart?: (id: string) => Promise<void>;
   currentLocation: { latitude: number; longitude: number } | null;
 };
 
@@ -22,6 +23,7 @@ const TerritoryDetails: React.FC<Props> = ({
   onUpdate,
   onAddingHouse,
   onDelete,
+  onRestart,
   currentLocation,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -127,7 +129,7 @@ const handleDelete = async() =>{
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <MotiView
-          className="z-20 flex w-full flex-col gap-2 overflow-hidden  bg-slate-200 p-4 shadow-lg"
+          className="z-20 flex w-full flex-col gap-2 overflow-hidden  bg-slate-200 dark:bg-negro p-4 shadow-lg"
           from={{ translateY: 300, opacity: 0 }}
           animate={{ translateY: 0, opacity: 1 }}
           exit={{ translateY: 300, opacity: 0 }}
@@ -146,6 +148,7 @@ const handleDelete = async() =>{
                   onClose={onClose}
                   onEdit={() => setIsEditing(true)}
                   onAddHouse={handleAddHouseClick}
+                  onRestart={onRestart}
                 />
               ) : (
                 <AddHouseCard

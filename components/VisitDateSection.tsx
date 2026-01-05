@@ -1,11 +1,12 @@
 // components/VisitDateSection.tsx
 import { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { CustomButton } from './CustomButton';
 import { styles } from './styles';
+import ThemedText from './ThemedText';
+import SmallSquareButton from './Buttons/SmallSquareButton';
 import { getTerritoryStatus } from '~/utils/territoryStatus';
-export const VisitDateSection = ({ form, setForm, onStart, onEnd }: any) => {
+export const VisitDateSection = ({ form, setForm, onStart, onEnd, onRestart }: any) => {
   const [showPicker, setShowPicker] = useState<'start' | 'end' | null>(null);
 
   const status = getTerritoryStatus(form).id;
@@ -13,19 +14,24 @@ export const VisitDateSection = ({ form, setForm, onStart, onEnd }: any) => {
   const handleDateChange = (type: 'start' | 'end', date?: Date) => {
     setShowPicker(null);
     if (date) {
-      setForm({
-        ...form,
-        [type === 'start' ? 'visitStartDate' : 'visitEndDate']: date.toISOString(),
-      });
+      const key = type === 'start' ? 'visitStartDate' : 'visitEndDate';
+      setForm(key, date.toISOString());
     }
+  };
+
+  const handleRestart = async () => {
+    setForm('visitStartDate', '');
+    setForm('visitEndDate', '');
+    setForm('note', '');
+    await onRestart?.();
   };
 
   return (
     <View className={styles.containerCard}>
       {status === 'completed' && (
         <View className="flex flex-row justify-between">
-          <View className="w-full items-center justify-center">
-            <Text>Este territorio se completó:</Text>
+          <View className="w-2/3 justify-center">
+            <ThemedText>Este territorio se completó:</ThemedText>
             <TouchableOpacity onPress={() => setShowPicker('end')}>
               <Text className="text-2xl font-bold text-green-500">
                 {form.visitEndDate
@@ -34,21 +40,28 @@ export const VisitDateSection = ({ form, setForm, onStart, onEnd }: any) => {
               </Text>
             </TouchableOpacity>
           </View>
+          <View className="flex w-1/3 items-end">
+            <SmallSquareButton
+              text="REINICIAR"
+              icon="refresh-circle"
+              onPress={handleRestart}
+              isSelected={true}
+            />
+          </View>
         </View>
       )}
 
       {status === 'ready' && (
         <View className="flex flex-row justify-between">
-          <View className='  justify-center'>
-            <Text>Este territorio aún no ha iniciado...</Text>
+          <View className=" w-2/3  justify-center">
+            <ThemedText>Este territorio aún no ha iniciado...</ThemedText>
           </View>
-          <View className="flex w-1/3">
-            <CustomButton
+          <View className="flex w-1/3 items-end">
+            <SmallSquareButton
               text="INICIAR"
+              icon="play-circle"
               onPress={onStart}
-              variant="primary"
-              className="bg-green-500"
-              fullWidth
+              isSelected={true}
             />
           </View>
         </View>
@@ -56,23 +69,22 @@ export const VisitDateSection = ({ form, setForm, onStart, onEnd }: any) => {
 
       {status === 'incomplete' && (
         <View className="flex flex-row justify-between">
-          <View>
-            <Text>Este territorio está iniciado...</Text>
+          <View className=" w-2/3  justify-center">
+            <ThemedText>Este territorio está iniciado...</ThemedText>
             <TouchableOpacity onPress={() => setShowPicker('start')}>
-              <Text className="text-2xl font-bold text-yellow-500">
+              <Text className="justify-center text-2xl font-bold text-yellow-500">
                 {form.visitStartDate
                   ? new Date(form.visitStartDate).toLocaleDateString()
                   : 'Seleccionar fecha'}
               </Text>
             </TouchableOpacity>
           </View>
-          <View className="flex w-1/3">
-            <CustomButton
+          <View className="flex w-1/3 items-end">
+            <SmallSquareButton
               text="TERMINAR"
+              icon="checkmark-circle"
               onPress={onEnd}
-              variant="primary"
-              className="bg-green-500"
-              fullWidth
+              isSelected={true}
             />
           </View>
         </View>

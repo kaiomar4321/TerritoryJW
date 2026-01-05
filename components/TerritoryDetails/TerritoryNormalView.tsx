@@ -18,6 +18,7 @@ type Props = {
   onClose: () => void;
   onEdit: () => void;
   onAddHouse: () => void;
+  onRestart?: (id: string) => Promise<void>;
 };
 
 const TerritoryNormalView: React.FC<Props> = ({
@@ -32,6 +33,7 @@ const TerritoryNormalView: React.FC<Props> = ({
   onClose,
   onEdit,
   onAddHouse,
+  onRestart,
 }) => {
   return (
     <MotiView
@@ -53,7 +55,8 @@ const TerritoryNormalView: React.FC<Props> = ({
           form={form}
           onStart={onStartVisit}
           onEnd={onEndVisit}
-          setForm={() => {}}
+          setForm={onChangeForm}
+          onRestart={() => onRestart?.(territory.id)}
         />
       </MotiView>
 

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Text, TextInput } from 'react-native';
+import { TextInput } from 'react-native';
 import { MotiView } from 'moti';
 import { CustomButton } from 'components/CustomButton';
 import { styles } from '../styles';
+import ThemedText from '../ThemedText';
 
 type Props = {
   note: string;
@@ -18,7 +19,7 @@ const VisitNote: React.FC<Props> = ({ note, onChangeNote, onSave }) => {
       animate={{ opacity: 1, scale: 1, translateY: 0 }}
       exit={{ opacity: 0, scale: 0.8, translateY: -20 }}
       transition={{ type: 'spring', damping: 20, stiffness: 300 }}>
-      <Text className="mb-1 mt-2.5 text-sm text-gray-600">Nota de la visita</Text>
+      <ThemedText className="mb-1 mt-2.5 text-sm text-gray-600">Nota de la visita</ThemedText>
       <TextInput
         value={note}
         onChangeText={onChangeNote}

@@ -1,9 +1,10 @@
 import React from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { MotiView } from 'moti';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { AddHouseForm } from '../AddHouseForm';
 import { styles } from '../styles';
+import ThemedText from '../ThemedText';
 
 type Props = {
   formHouse: { address: string; reason: string };
@@ -23,12 +24,12 @@ const AddHouseCard: React.FC<Props> = ({ formHouse, onChangeHouse, onSaveHouse, 
 
       <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }}>
         <MotiView className="w-full flex-row items-center justify-between">
-          <Text className="text-2xl font-bold">Agregar Nueva Casa</Text>
+          <ThemedText className="text-2xl font-bold">Agregar Nueva Casa</ThemedText>
           <TouchableOpacity className="rounded-full bg-slate-500 p-2" onPress={onCancel}>
             <Ionicons name="close-circle-outline" size={22} color="white" />
           </TouchableOpacity>
         </MotiView>
-        <Text className="mb-2 text-sm text-gray-600">Haz click en el mapa para poner la casa</Text>
+        <ThemedText className="mb-2 text-sm text-gray-600 dark:text-gray-400">Haz click en el mapa para poner la casa</ThemedText>
       </MotiView>
 
       <MotiView from={{ opacity: 0, translateY: 30 }} animate={{ opacity: 1, translateY: 0 }}>

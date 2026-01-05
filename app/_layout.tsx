@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../src/config/firebase';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { useRouter, useSegments, Slot } from 'expo-router';
 // 👈 Importa el Provider
-import { SafeAreaProvider } from 'react-native-safe-area-context'; 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import NetworkStatusBanner from '../components/NetworkStatusBanner';
 
 import '../global.css';
 
@@ -38,13 +40,30 @@ export default function RootLayout() {
   // Envolvemos el estado de carga (loader) y la aplicación con el Provider
   return (
     <SafeAreaProvider>
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : (
-        <Slot />
-      )}
+      <ThemeProvider>
+        <ThemeAwareStatusBar />
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#191919' }}>
+            <ActivityIndicator size="large" color="#925ffa" />
+          </View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <NetworkStatusBanner />
+            <Slot />
+          </View>
+        )}
+      </ThemeProvider>
     </SafeAreaProvider>
   );
+}
+
+function ThemeAwareStatusBar() {
+  const { isDark } = useTheme();
+
+  useEffect(() => {
+    StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
+    StatusBar.setBackgroundColor(isDark ? '#191919' : '#ffffff');
+  }, [isDark]);
+
+  return null;
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, useColorScheme } from 'react-native';
 
 import { useRouter } from 'expo-router';
 import { styles } from 'components/styles';
 import { CustomButton } from 'components/CustomButton';
 import { CustomTextInput } from 'components/CustomTextInput';
+import ThemedText from 'components/ThemedText';
 import { MotiView, AnimatePresence } from 'moti';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +13,8 @@ import { useUser } from '~/hooks/useUser';
 
 export default function Register() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -30,15 +33,15 @@ const {registerUser} = useUser()
           animate={{ opacity: 1, translateX: 0 }}
           exit={{ opacity: 0, translateX: -40 }}
           transition={{ type: 'timing', duration: 500 }}
-          className="flex h-full w-full items-center justify-center bg-white p-6 ">
+          className="flex h-full w-full items-center justify-center bg-white dark:bg-black2 p-6 ">
           <View className="flex h-full w-full gap-12">
             <TouchableOpacity onPress={() => router.push('/(auth)/welcome')} className=" ">
-              <Ionicons name="arrow-back" size={28} color="#7b00ff" />
+              <Ionicons name="arrow-back" size={28} color="#925ffa" />
             </TouchableOpacity>
             <View className=" flex gap-7">
               <View>
-                <Text className={styles.loginTitle}>Registrate</Text>
-                <Text className={styles.loginDescription}>
+                <ThemedText className={styles.loginTitle}>Registrate</ThemedText>
+                <Text className={`${styles.loginDescription} text-gray-600 dark:text-gray-400`}>
                   Crea tu cuenta para poder entrar a la aplicacion
                 </Text>
               </View>
@@ -89,7 +92,7 @@ const {registerUser} = useUser()
                   onPress={() => router.push('/(auth)/login')}
                   disabled={loading}>
                   <View className=" flex flex-row pt-2">
-                    <Text className="font-bold  ">¿Ya tienes cuenta?</Text>
+                    <Text className="font-bold text-gray-900 dark:text-gray-100 ">¿Ya tienes cuenta?</Text>
                     <Text className="font-bold text-morado "> Inicia sesión</Text>
                   </View>
                 </TouchableOpacity>

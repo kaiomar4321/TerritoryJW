@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { auth } from '~/config/firebase';
 import { useUser } from '~/hooks/useUser';
+import ThemedText from 'components/ThemedText';
 import { userService } from '~/services/userService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from 'components/styles';
@@ -12,6 +13,8 @@ const db = getFirestore();
 
 export default function UsersScreen() {
   const { userData } = useUser();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,9 +73,9 @@ export default function UsersScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#6d28d9" />
-        <Text className="mt-2 text-gray-500">Cargando usuarios...</Text>
+      <View className="flex-1 items-center justify-center dark:bg-black2">
+        <ActivityIndicator size="large" color="#925ffa" />
+        <Text className="mt-2 text-gray-500 dark:text-gray-400">Cargando usuarios...</Text>
       </View>
     );
   }
@@ -88,14 +91,14 @@ export default function UsersScreen() {
           renderItem={({ item }) => (
             <View
               key={item.uid}
-              className="flex-row rounded-2xl shadow-sm items-center justify-between border-b border-gray-200 p-3 bg-white mb-1">
+              className="flex-row rounded-2xl shadow-sm items-center justify-between border-b border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-black3 mb-1">
               <View>
-                <Text className="font-semibold text-gray-900">
+                <ThemedText className="font-semibold">
                   {item.displayName || 'Sin nombre'}
-                </Text>
+                </ThemedText>
                 
-                <Text className="text-sm text-gray-600">{item.email}</Text>
-                <Text className="mt-1 text-xs text-purple-600">Rol: {item.role}</Text>
+                <Text className="text-sm text-gray-600 dark:text-gray-400">{item.email}</Text>
+                <Text className="text-sm text-purple-600 dark:text-purple-400">Rol: {item.role}</Text>
               </View>
 
               <View className="flex-row space-x-3">

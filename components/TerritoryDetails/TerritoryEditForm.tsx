@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Text, TouchableOpacity, Modal, View } from 'react-native';
+import { TouchableOpacity, Modal, View } from 'react-native';
 import { MotiView } from 'moti';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { CustomTextInput } from '../CustomTextInput';
 import { CustomButton } from 'components/CustomButton';
 import { styles } from '../styles';
+import ThemedText from '../ThemedText';
 import { usePermissions } from '~/hooks/usePermissions';
 
 type Props = {
@@ -41,7 +42,7 @@ const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel, 
         transition={{ type: 'spring', damping: 15, stiffness: 200 }}>
         <MotiView from={{ opacity: 0, translateY: -30 }} animate={{ opacity: 1, translateY: 0 }}>
           <MotiView className="w-full flex-row items-center justify-between">
-            <Text className="text-2xl font-bold">Editar Territorio</Text>
+            <ThemedText className="text-2xl font-bold">Editar Territorio</ThemedText>
             <TouchableOpacity className="rounded-full bg-slate-500 p-2" onPress={onCancel}>
               <Ionicons name="close-circle-outline" size={22} color="white" />
             </TouchableOpacity>
@@ -108,10 +109,10 @@ const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel, 
               <View className="mb-3 rounded-full bg-red-100 p-3">
                 <Ionicons name="trash-outline" size={32} color="#dc2626" />
               </View>
-              <Text className="mb-2 text-xl font-bold text-gray-900">¿Eliminar territorio?</Text>
-              <Text className="text-center leading-5 text-gray-600">
+              <ThemedText className="mb-2 text-xl font-bold text-gray-900">¿Eliminar territorio?</ThemedText>
+              <ThemedText className="text-center leading-5 text-gray-600">
                 Esta acción no se puede deshacer. El territorio será eliminado permanentemente.
-              </Text>
+              </ThemedText>
             </View>
 
             <View className="space-y-3">

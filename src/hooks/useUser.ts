@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { auth } from '~/config/firebase';
 import {
@@ -13,6 +13,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
   reload,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { useOfflineSWR } from '~/hooks/useOfflineSWR';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,9 +24,10 @@ const db = getFirestore();
 
 export const useUser = () => {
   const uid = auth.currentUser?.uid;
+  const [isLoadingAction, setIsLoadingAction] = useState(false);
 
   // 🔹 Hook principal: obtiene datos de Firestore con cache offline
-  const { data: userData, error, isLoading } = useOfflineSWR(
+  const { data: userData, error, isLoading: isFetching } = useOfflineSWR(
     uid ? `user/${uid}` : null,
     async () => {
       if (!uid) throw new Error('No hay usuario autenticado');
@@ -117,6 +119,8 @@ export const useUser = () => {
       return;
     }
 
+    setIsLoadingAction(true);
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -152,6 +156,8 @@ export const useUser = () => {
         errorMessage = 'Demasiados intentos. Intenta más tarde.';
 
       Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoadingAction(false);
     }
   }, []);
 
@@ -193,12 +199,44 @@ export const useUser = () => {
     [uid, userData]
   );
 
+  // 🔹 Recuperar contraseña
+  const resetPassword = useCallback(async (email: string) => {
+    if (!email) {
+      Alert.alert('Error', 'Por favor ingresa tu email');
+      return;
+    }
+
+    setIsLoadingAction(true);
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        'Éxito',
+        'Se ha enviado un enlace para resetear tu contraseña a tu email. Por favor revisa tu bandeja de entrada.'
+      );
+    } catch (error: any) {
+      console.error('Error al enviar reset:', error);
+
+      let errorMessage = 'Error al enviar el email';
+      if (error.code === 'auth/user-not-found')
+        errorMessage = 'No existe una cuenta con este email';
+      else if (error.code === 'auth/invalid-email') errorMessage = 'Email inválido';
+      else if (error.code === 'auth/too-many-requests')
+        errorMessage = 'Demasiados intentos. Intenta más tarde.';
+
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoadingAction(false);
+    }
+  }, []);
+
   return {
     userData,
     registerUser,
     loginUser,
     updateUser,
-    loading: isLoading,
+    resetPassword,
+    loading: isLoadingAction,
     error,
   };
 };

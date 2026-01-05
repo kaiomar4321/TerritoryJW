@@ -1,6 +1,7 @@
-import { View, Text } from 'react-native';
+import { View, Text, useColorScheme } from 'react-native';
 import { clsx } from 'clsx';
 
+import ThemedText from './ThemedText';
 import { FILTER_OPTIONS } from '~/types/FilterOption';
 import { Territory } from '~/types/Territory';
 import { getTerritoryStats } from '~/utils/territoryStatus';
@@ -11,6 +12,8 @@ type Props = {
 };
 
 export const TerritoryStats = ({ territories }: Props) => {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const counts = getTerritoryStats(territories);
   const totalTerritories = territories.length;
 
@@ -25,11 +28,11 @@ export const TerritoryStats = ({ territories }: Props) => {
 
   return (
     <View className={styles.containerCard}>
-      <Text className="mb-4 w-full text-center  text-xl">Estadísticas de Territorios</Text>
+      <ThemedText className="mb-4 w-full text-center text-xl">Estadísticas de Territorios</ThemedText>
 
       {totalTerritories === 0 ? (
         <View className="items-center justify-center py-8">
-          <Text className="text-gray-500">No hay territorios para mostrar</Text>
+          <Text className="text-gray-500 dark:text-gray-400">No hay territorios para mostrar</Text>
         </View>
       ) : (
         <View className="w-full flex-row">
@@ -50,8 +53,8 @@ export const TerritoryStats = ({ territories }: Props) => {
                       {count}
                     </Text>
                   </View>
-                  <Text className="text-center text-xs text-gray-600">{option.label}</Text>
-                  <Text className="text-xs text-gray-500">({percentage}%)</Text>
+                  <Text className="text-center text-xs text-gray-600 dark:text-gray-400">{option.label}</Text>
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">({percentage}%)</Text>
                 </View>
               );
             })}
@@ -60,8 +63,8 @@ export const TerritoryStats = ({ territories }: Props) => {
           <View className=" flex-row w-1/3 justify-center">
             {/* Total */}
             <View className="mt-2 items-center py-2">
-              <Text className="text-xl font-semibold text-gray-800">Total: </Text>
-              <Text className="text-3xl font-semibold text-gray-800">{totalTerritories}</Text>
+              <ThemedText className="text-xl font-semibold">Total: </ThemedText>
+              <ThemedText className="text-3xl font-semibold">{totalTerritories}</ThemedText>
             </View>
           </View>
         </View>

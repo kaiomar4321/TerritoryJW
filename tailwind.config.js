@@ -7,6 +7,7 @@ module.exports = {
     './src/**/*.{js,jsx,ts,tsx}',
   ],
   presets: [require('nativewind/preset')],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -20,12 +21,5 @@ module.exports = {
       },
     },
   },
-
-  plugins: [
-    function ({ addBase }) {
-      addBase({
-        
-      });
-    },
-  ],
+  plugins: [],
 };

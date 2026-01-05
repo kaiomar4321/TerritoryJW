@@ -1,6 +1,7 @@
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import { resetTerritorySync } from '../hooks/useTerritory';
 
 export const authService = {
   async getUserRole(userId: string): Promise<'user' | 'admin' | 'superadmin'> {
@@ -24,6 +25,8 @@ export const authService = {
   async logout() {
     try {
       await signOut(auth);
+      // 🔄 Resetear la sincronización de territorios al cerrar sesión
+      resetTerritorySync();
       console.log('Usuario ha cerrado sesión.');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);

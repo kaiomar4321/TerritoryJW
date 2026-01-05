@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { territoryService, TERRITORIES_KEY } from '../services/territoryService';
 import { territoriesFetcher } from '../services/firestoreFetcher';
 import { auth } from '../config/firebase';
@@ -8,7 +8,10 @@ import { useOfflineSWR } from './useOfflineSWR';
 import { getTerritoryStatus } from '~/utils/territoryStatus';
 import { territoryUtils } from '~/utils/territoryUtils';
 
-export const useTerritory = () => {
+// 🔑 Variable global para rastrear si la sincronización inicial ya ocurrió
+let hasInitializedSync = false;
+
+export const useTerritory = (options?: { revalidateOnFocus?: boolean }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [drawingCoordinates, setDrawingCoordinates] = useState<any[]>([]);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
@@ -16,6 +19,7 @@ export const useTerritory = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
+  const isSyncingRef = useRef(false);
 
   const {
     data: territories = [],
@@ -23,7 +27,7 @@ export const useTerritory = () => {
     isLoading,
     mutate: mutateTerritories,
   } = useOfflineSWR<Territory[]>(TERRITORIES_KEY, territoriesFetcher, {
-    revalidateOnFocus: true,
+    revalidateOnFocus: options?.revalidateOnFocus ?? true,
     revalidateOnReconnect: true,
     dedupingInterval: 2000,
     errorRetryCount: 3,
@@ -35,16 +39,33 @@ export const useTerritory = () => {
   }, [isEditMode]);
 
   useEffect(() => {
-    (async () => {
-      console.log('🗺️ [useTerritory] Iniciando carga de territorios...');
-      const local = await territoryService.getLocalTerritories();
-      console.log(`📦 [LocalDB] ${local.length} territorios cargados desde almacenamiento local`);
-      mutateTerritories(local, false);
+    // ⚡ Solo sincronizar una vez al inicio de la app
+    if (hasInitializedSync || isSyncingRef.current) {
+      console.log('⏭️ [useTerritory] Sincronización ya en progreso o completada, saltando...');
+      return;
+    }
 
-      console.log('🌐 [Sync] Intentando sincronizar territorios desde Firestore...');
-      const synced = await territoryService.syncAll();
-      console.log(`✅ [Sync] ${synced.length} territorios sincronizados desde Firestore`);
-      mutateTerritories(synced, false);
+    isSyncingRef.current = true;
+
+    (async () => {
+      console.log('🗺️ [useTerritory] Iniciando carga INICIAL de territorios...');
+      try {
+        const local = await territoryService.getLocalTerritories();
+        console.log(`📦 [LocalDB] ${local.length} territorios cargados desde almacenamiento local`);
+        mutateTerritories(local, false);
+
+        console.log('🌐 [Sync] Intentando sincronizar territorios desde Firestore...');
+        const synced = await territoryService.syncAll();
+        console.log(`✅ [Sync] ${synced.length} territorios sincronizados desde Firestore`);
+        mutateTerritories(synced, false);
+        
+        hasInitializedSync = true;
+      } catch (error) {
+        console.error('❌ [useTerritory] Error en sincronización inicial:', error);
+        // No resetear hasInitializedSync, para evitar reintentos infinitos
+      } finally {
+        isSyncingRef.current = false;
+      }
     })();
   }, [mutateTerritories]);
 
@@ -111,6 +132,17 @@ export const useTerritory = () => {
       status: getTerritoryStatus(t).id,
     }));
   }, [territories]);
+
+  const filteredAndMappedTerritories = useMemo(() => {
+    let filtered = territoriesWithStatus;
+    
+    // Aplicar filtro por estado si está seleccionado
+    if (selectedFilter) {
+      filtered = filtered.filter((t) => t.status === selectedFilter);
+    }
+    
+    return filtered;
+  }, [territoriesWithStatus, selectedFilter]);
 
   const updateTerritory = useCallback(
     async (id: string, updates: Partial<Territory>) => {
@@ -189,11 +221,30 @@ export const useTerritory = () => {
     [updateTerritory]
   );
 
+  const restartTerritory = useCallback(
+    async (id: string) => {
+      try {
+        console.log(`🔄 [restartTerritory] Reiniciando territorio ${id}...`);
+        await updateTerritory(id, {
+          visitStartDate: '',
+          visitEndDate: '',
+          note: '',
+        });
+        console.log('✅ [restartTerritory] Territorio reiniciado');
+      } catch (error) {
+        console.error('❌ [restartTerritory] Error:', error);
+        alert('Error al reiniciar el territorio.');
+      }
+    },
+    [updateTerritory]
+  );
+
   return {
     assignToGroup,
     unassignFromGroup,
+    restartTerritory,
     territories,
-    filteredTerritories: territoriesWithStatus,
+    filteredTerritories: filteredAndMappedTerritories,
     isLoading,
     error,
     isBatchLoading,
@@ -217,4 +268,10 @@ export const useTerritory = () => {
     markAllCompleted,
     deleteTerritory,
   };
+};
+
+// 🔄 Función para resetear la sincronización (útil al cambiar de usuario)
+export const resetTerritorySync = () => {
+  hasInitializedSync = false;
+  console.log('🔄 [resetTerritorySync] Sincronización reseteada');
 };

@@ -1,5 +1,5 @@
 // app/profile.tsx
-import { View, Text, ScrollView, Image } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { authService } from '~/services/authService';
 import { router } from 'expo-router';
 import { CustomButton } from 'components/CustomButton';
@@ -11,7 +11,8 @@ import { styles } from 'components/styles';
 import { TerritoryStats } from 'components/TerritoryStats';
 import { useTerritory } from '~/hooks/useTerritory';
 import { usePermissions } from '~/hooks/usePermissions';
-import { CreateGroupModal } from 'components/CreateGroupModal';
+import { useTheme } from '~/context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Profile() {
 
@@ -20,6 +21,9 @@ export default function Profile() {
   const [form, setForm] = useState({ displayName: '' });
   const { territories, allCompleted, markAllReady } = useTerritory();
   const { isAdmin } = usePermissions();
+  const { theme, isDark, setTheme } = useTheme();
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  
   useEffect(() => {
     if (userData) {
       setForm({
@@ -28,18 +32,26 @@ export default function Profile() {
     }
   }, [userData]);
 
+  const themeOptions = [
+    { id: 'light', label: 'Claro', icon: '☀️' },
+    { id: 'dark', label: 'Oscuro', icon: '🌙' },
+    { id: 'system', label: 'Sistema', icon: '⚙️' },
+  ];
+
+  const currentThemeLabel = themeOptions.find((t) => t.id === theme)?.label || 'Sistema';
+
   if (loading) return <Text className="mt-10 text-center">Cargando perfil...</Text>;
   if (!userData)
     return <Text className="mt-10 text-center text-red-500">Usuario no encontrado</Text>;
 
   return (
-    <ScrollView className="relative p-3 ">
+    <ScrollView className="relative p-3 dark:bg-black1">
       {/* Encabezado con animación */}
       <MotiText
         from={{ opacity: 0, translateY: -20 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 600 }}
-        className="mb-6 text-center text-3xl font-extrabold ">
+        className="mb-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
         Mi Perfil
       </MotiText>
 
@@ -59,10 +71,10 @@ export default function Profile() {
             className="mb-4 h-28 w-28 rounded-full border-4 border-morado"
           />
           <View className=" flex-1 justify-start pt-2 ">
-            <Text className="mt-1 text-2xl font-semibold leading-none text-gray-900">
+            <Text className="mt-1 text-2xl font-semibold leading-none text-gray-900 dark:text-white">
               {userData?.displayName || 'Sin nombre'}
             </Text>
-            <Text className="text-sm font-medium leading-none text-gray-700">
+            <Text className="text-sm font-medium leading-none text-gray-700 dark:text-gray-300">
               {userData?.email}
             </Text>
 
@@ -141,6 +153,55 @@ export default function Profile() {
         </MotiView>
       )}
 
+      {/* Selector de tema desplegable */}
+      <View className={styles.containerCard}>
+        <TouchableOpacity
+          onPress={() => setShowThemeMenu(!showThemeMenu)}
+          className="flex-row items-center justify-between rounded-lg bg-gray-50 dark:bg-black3 p-3">
+          <View>
+            <Text className="text-lg font-semibold text-gray-900 dark:text-white">Tema</Text>
+            <Text className="text-sm text-gray-600 dark:text-gray-400">{currentThemeLabel}</Text>
+          </View>
+          <MotiView
+            animate={{ rotate: showThemeMenu ? '180deg' : '0deg' }}
+            transition={{ type: 'timing', duration: 300 }}>
+            <Ionicons name="chevron-down" size={24} color={isDark ? '#fff' : '#000'} />
+          </MotiView>
+        </TouchableOpacity>
+
+        {/* Opciones desplegables */}
+        {showThemeMenu && (
+          <MotiView
+            from={{ opacity: 0, translateY: -10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 200 }}
+            className="mt-2 gap-2">
+            {themeOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                onPress={() => {
+                  setTheme(option.id as 'light' | 'dark' | 'system');
+                  setShowThemeMenu(false);
+                }}
+                className={`rounded-lg p-3 flex-row items-center gap-3 ${
+                  theme === option.id
+                    ? 'bg-morado'
+                    : 'bg-gray-100 dark:bg-black3'
+                }`}>
+                <Text className="text-xl">{option.icon}</Text>
+                <Text
+                  className={`text-base font-medium ${
+                    theme === option.id
+                      ? 'text-white'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </MotiView>
+        )}
+      </View>
 
       <View className="">
         <CustomButton

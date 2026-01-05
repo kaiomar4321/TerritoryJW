@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '~/hooks/useUser';
+import { useTheme } from '~/context/ThemeContext';
 
 export default function TabsLayout() {
   // ✅ Obtenemos los datos del usuario desde tu propio hook
   const { userData, loading } = useUser();
+  const { isDark } = useTheme();
 
   if (loading) return null; // o muestra un loader si prefieres
 
@@ -14,17 +16,19 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
+          backgroundColor: isDark ? '#191919' : '#ffffff',
+          borderTopWidth: 0,
+          borderTopColor: isDark ? '#2d2d2d' : '#e5e7eb',
           paddingBottom: 5,
           paddingTop: 5,
         },
-        headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#111827',
+        headerStyle: { 
+          backgroundColor: isDark ? '#0C0C0C' : '#ffffff' 
+        },
+        headerTintColor: isDark ? '#ffffff' : '#111827',
         headerShown: false,
-        tabBarActiveTintColor: '#6d28d9',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: '#925ffa',
+        tabBarInactiveTintColor: isDark ? '#6b7280' : '#9ca3af',
       }}>
       <Tabs.Screen
         name="index"

@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { ScrollView, Text, View, useColorScheme, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { clsx } from 'clsx';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { CustomTextInput } from 'components/CustomTextInput';
+import ThemedText from 'components/ThemedText';
 import { getTerritoryStatus } from '~/utils/territoryStatus';
-import { FILTER_OPTIONS, FilterOption } from '~/types/FilterOption';
 import { useTerritory } from '~/hooks/useTerritory';
-import { FilterSortBottomSheet, SortOption } from 'components/FilterSortBottomSheet';
+import { FilterSection } from 'components/FilterSection';
+import { FilterSortBottomSheet } from 'components/FilterSortBottomSheet';
+import { useFilterSort } from '~/hooks/useFilterSort';
 import { styles } from 'components/styles';
 const formatDate = (timestamp: any) => {
   if (!timestamp) return null;
@@ -21,52 +21,34 @@ const formatDate = (timestamp: any) => {
 };
 
 export default function Territories() {
-  const { territories, isLoading, error } = useTerritory();
-  const [filterOption, setFilterOption] = useState<FilterOption | null>(null);
-  const [sortOption, setSortOption] = useState<SortOption>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const { territories, isLoading, error } = useTerritory({ revalidateOnFocus: false });
+  const {
+    filterOption,
+    setFilterOption,
+    sortOption,
+    setSortOption,
+    searchQuery,
+    setSearchQuery,
+    bottomSheetOpen,
+    setBottomSheetOpen,
+    filteredAndSortedTerritories,
+  } = useFilterSort(territories);
   const router = useRouter();
-
-  // Filtrar y ordenar
-  const filteredAndSortedTerritories = useMemo(() => {
-    let filtered = territories.filter((t) => {
-      const query = searchQuery.toLowerCase().trim();
-      if (!query) return true;
-      return t.name.toLowerCase().includes(query) || t.number.toString().includes(query);
-    });
-
-    if (filterOption) filtered = filtered.filter((t) => getTerritoryStatus(t).id === filterOption);
-
-    if (sortOption === 'recent')
-      filtered = filtered.sort(
-        (a, b) =>
-          (b.visitStartDate ? new Date(b.visitStartDate).getTime() : 0) -
-          (a.visitStartDate ? new Date(a.visitStartDate).getTime() : 0)
-      );
-    if (sortOption === 'oldest')
-      filtered = filtered.sort(
-        (a, b) =>
-          (a.visitStartDate ? new Date(a.visitStartDate).getTime() : 0) -
-          (b.visitStartDate ? new Date(b.visitStartDate).getTime() : 0)
-      );
-    if (sortOption === 'ascNumber') filtered = filtered.sort((a, b) => a.number - b.number);
-    if (sortOption === 'descNumber') filtered = filtered.sort((a, b) => b.number - a.number);
-
-    return filtered;
-  }, [territories, filterOption, sortOption, searchQuery]);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   if (isLoading)
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100">
-        <Text>Cargando territorios...</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100 dark:bg-black2">
+        <ActivityIndicator size="large" color={isDark ? '#9CA3AF' : '#3b82f6'} />
+        <Text className="mt-4 text-gray-900 dark:text-gray-100">Cargando territorios...</Text>
       </SafeAreaView>
     );
 
   if (error)
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100">
-        <Text>Error: {error.message}</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100 dark:bg-black2">
+        <Text className="text-gray-900 dark:text-gray-100">Error: {error.message}</Text>
       </SafeAreaView>
     );
 
@@ -76,40 +58,20 @@ export default function Territories() {
       <View className={styles.containerPage}>
         <Text className={styles.pageTitle}>Territorios</Text>
 
-        <View>
-          {/* Buscador */}
-          <CustomTextInput
-            placeholder="Buscar por nombre o número..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            iconLeft="search"
-            className="mb-3"
-            placeholderTextColor="#9CA3AF"
-          />
-
-          {/* Botón para abrir Bottom Sheet */}
-          <View>
-            <Text className="ps-2 text-sm text-gray-500">Filtro y orden:</Text>
-            <TouchableOpacity
-              onPress={() => setBottomSheetOpen(true)}
-              className="rounded-xl border border-gray-300 bg-white p-3">
-              <Text className="text-gray-700">
-                {filterOption ? FILTER_OPTIONS.find((o) => o.id === filterOption)?.label : 'Todos'}
-                {' | '}
-                {sortOption ? sortOption : 'Sin orden'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <FilterSection
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filterOption={filterOption}
+          sortOption={sortOption}
+          onOpenBottomSheet={() => setBottomSheetOpen(true)}
+        />
       </View>
 
       {/* Bottom Sheet con Moti */}
-
-      {/* Lista de territorios */}
       <ScrollView contentContainerStyle={{ padding: 12 }}>
         {searchQuery.trim() !== '' && (
           <View className="mb-3 px-2">
-            <Text className="text-sm text-gray-600">
+            <Text className="text-sm text-gray-600 dark:text-gray-400">
               {filteredAndSortedTerritories.length} resultado
               {filteredAndSortedTerritories.length !== 1 ? 's' : ''}
               {searchQuery.trim() && ` para "${searchQuery}"`}
@@ -119,7 +81,7 @@ export default function Territories() {
 
         {filteredAndSortedTerritories.length === 0 ? (
           <View className="items-center justify-center py-10">
-            <Text className="text-lg text-gray-500">
+            <Text className="text-lg text-gray-500 dark:text-gray-400">
               {searchQuery.trim()
                 ? `No se encontraron territorios para "${searchQuery}"`
                 : 'No hay territorios disponibles'}
@@ -133,7 +95,7 @@ export default function Territories() {
               onPress={() =>
                 router.push({ pathname: '/' as any, params: { territoryId: territory.id } })
               }
-              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-sm">
+              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-black3">
               {/* Número */}
               <View
                 className={clsx('w-24 items-center justify-center')}
@@ -143,25 +105,31 @@ export default function Territories() {
 
               {/* Info */}
               <View className="flex-1 p-3">
-                <Text className="text-lg font-semibold text-gray-800">{territory.name}</Text>
+                <ThemedText className="text-lg font-semibold">{territory.name}</ThemedText>
 
-                <Text className="text-sm text-gray-600">
+                <Text className="text-sm text-gray-600 dark:text-gray-400">
                   {territory.visitStartDate
                     ? `Inició: ${formatDate(territory.visitStartDate)}`
                     : 'Sin fecha todavía'}
                 </Text>
 
-                <Text className="text-sm text-gray-600">
+                <Text className="text-sm text-gray-600 dark:text-gray-400">
                   {territory.visitEndDate ? `Finalizó: ${formatDate(territory.visitEndDate)}` : ''}
                 </Text>
 
                 {territory.note ? (
-                  <View className="mt-1 bg-slate-100 p-1">
-                    <Text className="text-xs font-medium text-gray-500">Nota:</Text>
-                    <Text className="text-sm text-gray-700">{territory.note}</Text>
+                  <View className="mt-1 bg-slate-100 p-1 dark:bg-black2">
+                    <Text className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Nota:
+                    </Text>
+                    <Text className="text-sm text-gray-700 dark:text-gray-300">
+                      {territory.note}
+                    </Text>
                   </View>
                 ) : (
-                  <Text className="mt-1 text-xs italic text-gray-400">Sin notas</Text>
+                  <Text className="mt-1 text-xs italic text-gray-400 dark:text-gray-500">
+                    Sin notas
+                  </Text>
                 )}
               </View>
             </TouchableOpacity>
