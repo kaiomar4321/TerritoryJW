@@ -14,6 +14,8 @@ export type Territory = {
   visitStartDate?: string | null;
   visitEndDate?: string | null;
   note?: string;
+  couples?: number; // Número de parejas
+  hours?: number; // Horas de visita
   lastModified: number; // timestamp UNIX
   synced?: boolean; // opcional para marcar si ya se sincronizó
   groupId?: string | null;

@@ -24,6 +24,25 @@ const TerritoryHeader: React.FC<Props> = ({ territory, isVisit }) => {
         {isVisit ? <Ionicons name="alert" size={50} color="orange" /> : <Ionicons name="checkmark-circle" size={50} color="green" />}
         
       </View>
+
+      {/* Badges para Parejas y Horas */}
+      <View className=" flex flex-row gap-3">
+        {/* Badge Parejas */}
+        <View className="flex flex-row items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1.5 dark:bg-blue-900">
+          <Ionicons name="people" size={16} color="#2563eb" />
+          <ThemedText className="text-sm font-semibold text-blue-700 dark:text-blue-200">
+            {territory.couples || 0} parejas
+          </ThemedText>
+        </View>
+
+        {/* Badge Horas */}
+        <View className="flex flex-row items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1.5 dark:bg-purple-900">
+          <Ionicons name="time" size={16} color="#9333ea" />
+          <ThemedText className="text-sm font-semibold text-purple-700 dark:text-purple-200">
+            {territory.hours || 0}h
+          </ThemedText>
+        </View>
+      </View>
     </View>
   );
 };

@@ -67,6 +67,20 @@ const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel, 
             keyboardType="decimal-pad"
           />
           <CustomTextInput
+            iconLeft="people-outline"
+            placeholder="Parejas"
+            value={String(form.couples || 0)}
+            onChangeText={(t) => onChange('couples', parseInt(t) || 0)}
+            keyboardType="number-pad"
+          />
+          <CustomTextInput
+            iconLeft="time-outline"
+            placeholder="Horas"
+            value={String(form.hours || 0)}
+            onChangeText={(t) => onChange('hours', parseFloat(t) || 0)}
+            keyboardType="decimal-pad"
+          />
+          <CustomTextInput
             iconLeft="color-fill-outline"
             placeholder="Color"
             value={form.color}
