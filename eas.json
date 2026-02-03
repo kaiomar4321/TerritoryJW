@@ -17,23 +17,28 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_USE_STATIC_FRAMEWORKS": "1"
       }
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_USE_STATIC_FRAMEWORKS": "1"
       }
     },
     "production": {
       "ios": {
-        "distribution": "store",
+        "distribution": "adhoc",
         "autoIncrement": true
       },
       "android": {
-        "distribution": "store",
         "buildType": "apk",
         "autoIncrement": true
       },
