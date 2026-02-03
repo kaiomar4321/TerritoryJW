@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, FlatList, useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useMemo } from 'react';
 import { useGroup } from '~/hooks/useGroup';
 import { useUsers } from '~/hooks/useUsers';
@@ -6,6 +7,8 @@ import ThemedText from 'components/ThemedText';
 import { CreateGroupModal } from 'components/CreateGroupModal';
 import { CustomButton } from 'components/CustomButton';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { styles } from 'components/styles';
 
 const Groups = () => {
   const { groups, isLoading } = useGroup();
@@ -35,32 +38,42 @@ const Groups = () => {
   }
 
   return (
-    <View className="flex-1 bg-gray-50 dark:bg-black2 p-4">
-      <View className="mb-4 flex-col items-center justify-between">
-        <ThemedText className="text-xl font-bold">Grupos</ThemedText>
-        <CustomButton text="Agregar Grupo" onPress={() => setIsModalVisible(true)} />
+    <SafeAreaView className={styles.SAV}>
+      <View className={styles.containerPage}>
+        <Text className={styles.pageTitle}>Grupos</Text>
+
+        <View className="mb-4">
+          <CustomButton text="Agregar Grupo" onPress={() => setIsModalVisible(true)} />
+        </View>
+
+        <CreateGroupModal visible={isModalVisible} onClose={() => setIsModalVisible(false)} />
       </View>
-
-      <CreateGroupModal visible={isModalVisible} onClose={() => setIsModalVisible(false)} />
-
       <FlatList
         data={enrichedGroups}
+        contentContainerStyle={{ padding: 12 }}
         numColumns={2}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
-            className="m-1 w-[48%] rounded-2xl bg-white dark:bg-black3 p-3 shadow"
+            className="m-1 w-[48%] rounded-2xl bg-white p-3 shadow dark:bg-black3"
             onPress={() => router.push(`/admin/group/${item.id}`)}>
-            <ThemedText className="text-lg font-semibold">Grupo {item.number}</ThemedText>
+            <View className="flex-row items-center gap-2 mb-2">
+              <ThemedText className="text-lg font-semibold">Grupo {item.number}</ThemedText>
+              <Ionicons name="people" size={24} color="#6d28d9" />
+            </View>
             <Text className="mt-1 text-gray-600 dark:text-gray-400">{item.leaderName}</Text>
-            <Text className="mt-1 text-gray-600 dark:text-gray-400">Territorios: {item.totalTerritories}</Text>
+            <Text className=" text-sm mt-1 text-gray-600 dark:text-gray-400">
+              Territorios: {item.totalTerritories}
+            </Text>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text className="mt-10 text-center text-gray-500 dark:text-gray-400">No hay grupos registrados</Text>
+          <Text className="mt-10 text-center text-gray-500 dark:text-gray-400">
+            No hay grupos registrados
+          </Text>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

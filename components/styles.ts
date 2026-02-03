@@ -11,5 +11,5 @@ export const styles = {
   loginDescription: "font-bold mb-1 text-gray-400 dark:text-gray-500",
   pageTitle: "mb-4 text-center text-2xl font-bold text-gray-900 dark:text-white",
   containerPage: "px-4 py-2 shadow bg-white dark:bg-black1 text-gray-900 dark:text-white",
-  SAV: "flex-1 bg-gray-100 dark:bg-black1 text-gray-900 dark:text-white",
+  SAV: "flex-1 bg-gray-100 dark:bg-black1 text-gray-900 dark:text-white mt-0",
 };

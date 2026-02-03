@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGroup } from '~/hooks/useGroup';
@@ -8,11 +9,12 @@ import { CustomButton } from 'components/CustomButton';
 import ThemedText from 'components/ThemedText';
 import { EditGroupModal } from 'components/Admin/EditGroupModal';
 import AssignTerritoryModal from 'components/AssignTerritoryModal';
+import { styles } from 'components/styles';
 
 const GroupDetail = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { groups, updateGroup, deleteGroup,  unassignTerritory } = useGroup();
+  const { groups, updateGroup, deleteGroup, unassignTerritory } = useGroup();
   const { users } = useUsers();
   const { territories } = useTerritory();
 
@@ -60,8 +62,6 @@ const GroupDetail = () => {
     await updateGroup(group.id, { number, leaderId });
     Alert.alert('Éxito', 'Grupo actualizado correctamente');
   };
-
-
 
   const handleUnassignTerritory = (territoryId: string, territoryName: string) => {
     if (!group) return;
@@ -113,26 +113,23 @@ const GroupDetail = () => {
   }
 
   return (
-    <>
+    <SafeAreaView className={styles.SAV}>
       <ScrollView className="flex-1 bg-gray-50 dark:bg-black2">
         <View className="p-4">
           {/* Header */}
-          <View className="mb-6 rounded-2xl bg-white dark:bg-black3 p-6 shadow">
-            <View className="mb-4 flex-row items-center justify-between">
-              <ThemedText className="text-3xl font-bold text-morado">Grupo #{group.number}</ThemedText>
-              <View className="rounded-full bg-morado/10 dark:bg-morado/20 px-4 py-2">
+          <View className="mb-6 rounded-2xl bg-white p-6 shadow dark:bg-black3">
+            <View className="mb-1 flex-row items-center justify-between">
+              <ThemedText className="text-3xl font-bold text-morado">
+                Grupo #{group.number}
+              </ThemedText>
+              <View className="rounded-full bg-morado/10 px-4 py-2 dark:bg-morado/20">
                 <Text className="text-sm font-semibold text-morado">
                   {group.territoryIds?.length || 0} Territorios
                 </Text>
               </View>
             </View>
-            <CustomButton text="Editar Información" onPress={() => setIsEditModalVisible(true)} />
-          </View>
 
-          {/* Información del Encargado */}
-          <View className="mb-4 rounded-2xl bg-white dark:bg-black3 p-6 shadow">
-            <ThemedText className="mb-4 text-lg font-bold">Encargado</ThemedText>
-            <View className="flex-row items-center">
+            <View className=" flex-row items-center mb-4">
               <View className="mr-4 h-12 w-12 items-center justify-center rounded-full bg-morado/10 dark:bg-morado/20">
                 <Text className="text-xl font-bold text-morado">
                   {leader?.displayName?.charAt(0) || leader?.email?.charAt(0) || '?'}
@@ -142,13 +139,17 @@ const GroupDetail = () => {
                 <ThemedText className="text-base font-semibold">
                   {leader?.displayName || 'Sin nombre'}
                 </ThemedText>
-                <Text className="text-sm text-gray-500 dark:text-gray-400">{leader?.email || 'Sin email'}</Text>
+                <Text className="text-sm text-gray-500 dark:text-gray-400">
+                  {leader?.email || 'Sin email'}
+                </Text>
               </View>
             </View>
+            <CustomButton text="Editar Información" onPress={() => setIsEditModalVisible(true)} />
           </View>
 
+
           {/* Territorios Asignados */}
-          <View className="mb-4 rounded-2xl bg-white dark:bg-black3 p-6 shadow">
+          <View className="mb-4 rounded-2xl bg-white p-6 shadow dark:bg-black3">
             <View className="mb-4 flex-row items-center justify-between">
               <ThemedText className="text-lg font-bold">Territorios Asignados</ThemedText>
               <TouchableOpacity
@@ -165,7 +166,7 @@ const GroupDetail = () => {
                       <TouchableOpacity
                         key={territory.id}
                         onPress={() => handleUnassignTerritory(territory.id, territory.name)}
-                        className="flex-row items-center justify-between rounded-lg bg-morado/10 dark:bg-morado/20 p-3">
+                        className="flex-row items-center justify-between rounded-lg bg-morado/10 p-3 dark:bg-morado/20">
                         <View className="flex-1 flex-row items-center">
                           <View
                             className="mr-3 h-4 w-4 rounded"
@@ -189,7 +190,7 @@ const GroupDetail = () => {
           </View>
 
           {/* Información del Sistema */}
-          <View className="mb-4 rounded-2xl bg-white dark:bg-black3 p-6 shadow">
+          <View className="mb-4 rounded-2xl bg-white p-6 shadow dark:bg-black3">
             <ThemedText className="mb-4 text-lg font-bold">Información</ThemedText>
 
             <View className="mb-3">
@@ -199,12 +200,16 @@ const GroupDetail = () => {
 
             <View className="mb-3">
               <Text className="text-xs text-gray-500 dark:text-gray-400">Fecha de Creación</Text>
-              <Text className="mt-1 text-sm text-gray-700 dark:text-gray-300">{formatDate(group.createdAt)}</Text>
+              <Text className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                {formatDate(group.createdAt)}
+              </Text>
             </View>
 
             <View>
               <Text className="text-xs text-gray-500 dark:text-gray-400">Última Actualización</Text>
-              <Text className="mt-1 text-sm text-gray-700 dark:text-gray-300">{formatDate(group.updatedAt)}</Text>
+              <Text className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                {formatDate(group.updatedAt)}
+              </Text>
             </View>
           </View>
 
@@ -230,7 +235,7 @@ const GroupDetail = () => {
           setIsAssignTerritoryModalVisible(false);
         }}
       />
-    </>
+    </SafeAreaView>
   );
 };
 
