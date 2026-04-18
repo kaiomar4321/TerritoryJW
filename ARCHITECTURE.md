@@ -297,47 +297,6 @@ try {
    └─ changeUserRole()   → Cambiar rol (con validaciones)
 
 ✅ src/hooks/useUser.ts
-   ├─ userData          → Estado local del usuario
-   ├─ registerUser()    → Crear cuenta
-   ├─ loginUser()       → Iniciar sesión
-   ├─ updateUser()      → Editar perfil
-   └─ resetPassword()   → Recuperar contraseña
-
-✅ src/hooks/usePermissions.ts
-   ├─ isAdmin           → Booleano de permisos
-   └─ isLoading         → Estado de carga
-
-✅ app/(auth)/*.tsx
-   ├─ login.tsx         → Pantalla de inicio de sesión
-   ├─ register.tsx      → Pantalla de registro
-   ├─ forgot-password.tsx → Recuperación de contraseña
-   └─ splash.tsx        → Splash inicial (opcional)
-
-✅ app/(tabs)/_layout.tsx
-   └─ Protección de ruta: chequea auth.currentUser + usePermissions()
-
-✅ app/(tabs)/admin/* 
-   └─ Secciones solo para admin, validadas en _layout y componentes
-```
-
-### 5.1.6 Estructura de código: Autenticación en capas
-
-**Archivos clave involucrados:**
-
-```
-✅ src/config/firebase.ts
-   └─ Inicializa auth con persistencia en AsyncStorage
-   
-✅ src/services/authService.ts
-   ├─ getUserRole(uid)  → Obtiene rol desde Firestore
-   ├─ getCurrentUser()   → Retorna user de Firebase Auth
-   ├─ logout()           → Limpia sesión y estado global
-   └─ Helpers: isAdmin(), isSuperAdmin()
-
-✅ src/services/userService.ts
-   └─ changeUserRole()   → Cambiar rol (con validaciones)
-
-✅ src/hooks/useUser.ts
    ├─ userData          → Estado local del usuario (con caché offline)
    ├─ registerUser()    → Crear cuenta + documento Firestore
    ├─ loginUser()       → Iniciar sesión (carga rol + datos)
@@ -357,7 +316,8 @@ try {
    ├─ login.tsx         → Pantalla de inicio de sesión
    ├─ register.tsx      → Pantalla de registro (recibe rol si es admin)
    ├─ forgot-password.tsx → Recuperación de contraseña
-   └─ splash.tsx        → Splash inicial (opcional)
+   ├─ welcome.tsx       → Pantalla de bienvenida
+   └─ splash.tsx        → Splash inicial (loading ~2.5s)
 
 ✅ app/(tabs)/_layout.tsx
    └─ Protección de ruta: chequea auth.currentUser + usePermissions()
@@ -734,7 +694,7 @@ groups:        (createdBy, createdAt)    ← si quieres historiales por creador
 
 #### 🔄 El patrón `useOfflineSWR` — Cache offline + sincronización
 
-**Propósito:** Hook genérico que combina SWR (stale-while-revalidate) con persistencia offline y sincronización automática.
+**Propósito:** Hook genérico que combina SWR (stale-while-revalidate) con persistencia offline en AsyncStorage.
 
 **Características:**
 ```typescript
@@ -742,30 +702,25 @@ const { data, isLoading, error, mutate } = useOfflineSWR<T>(
   key: string,                          // Clave única (ej: "firestore:territories")
   fetcher: async () => T,               // Función que obtiene datos de Firebase
   {
-    revalidateOnFocus: boolean,         // ¿Revalidar al enfocar la app?
-    revalidateOnReconnect: boolean,     // ¿Revalidar cuando vuelve conexión?
-    dedupingInterval: number,           // ms para deduplicar requests idénticas
-    ttl: number,                        // Time-to-live del cache (ms)
-    errorRetryCount: number             // Reintentos en caso de error
+    ttl: number,                        // Time-to-live del cache en ms (ej: 24h)
+    // Hereda opciones estándar de SWR: revalidateOnFocus, errorRetryCount, etc.
   }
 );
 ```
 
 **Beneficios:**
 - ✅ Datos en caché mientras se revalida en background
-- ✅ Funciona offline: muestra caché aunque no haya internet
-- ✅ Auto-sincroniza cuando reconecta
-- ✅ Deduplicación automática de requests duplicados
+- ✅ Funciona offline: devuelve AsyncStorage si fetch falla
+- ✅ TTL configurable: cache expira después de N ms
+- ✅ Integrado con SWR: hereda deduplicación y revalidación
 
 **Ejemplo de uso:**
 ```typescript
 // En useTerritory.ts
 const { data: territories = [], mutate } = useOfflineSWR<Territory[]>(
-  TERRITORIES_KEY,                      // "firestore:territories"
+  'firestore:territories',              // Clave única
   territoriesFetcher,                   // Función async que trae datos
   {
-    revalidateOnFocus: true,
-    revalidateOnReconnect: true,
     ttl: 1000 * 60 * 60 * 24,          // 24 horas de cache
   }
 );
@@ -1171,47 +1126,65 @@ export const houseSchema = yup.object().shape({
 });
 ```
 
-#### 🔄 Integración con `useForm()` Hook
+#### 🔄 Integración con `useForm()` Hook (sin validación integrada)
+
+**Nota:** El hook `useForm()` es básico y **NO tiene validación integrada**. Validar con esquema Yup/Zod en el componente o custom hook.
 
 ```typescript
-// app/(auth)/login.tsx
+// app/(auth)/login.tsx - Validación manual con Yup
 import { useForm } from '~/hooks/useForm';
-import { loginSchema } from '~/utils/validationSchemas';
+import * as yup from 'yup';
+
+const loginSchema = yup.object().shape({
+  email: yup.string().email('Correo inválido').required('Requerido'),
+  password: yup.string().min(6, 'Mínimo 6 caracteres').required('Requerido'),
+});
 
 export default function LoginScreen() {
-  const { values, errors, touched, isSubmitting, handleChange, handleSubmit } = useForm({
-    initialValues: { email: '', password: '' },
-    validationSchema: loginSchema,
-    onSubmit: async (values) => {
-      try {
-        await loginUser(values.email, values.password);
-        // Navegar a home
-      } catch (error) {
-        setLoginError(error.message);
-      }
-    },
+  const { form, handleChange, resetForm } = useForm({
+    email: '',
+    password: '',
   });
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      // Validar manualmente
+      await loginSchema.validate(form);
+      
+      // Ejecutar login
+      await loginUser(form.email, form.password);
+      // Navegar a home
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View>
+      {error && <AlertError message={error} />}
+      
       <CustomTextInput
         placeholder="Correo"
-        value={values.email}
+        value={form.email}
         onChangeText={(text) => handleChange('email', text)}
-        error={touched.email ? errors.email : undefined}
       />
       <CustomTextInput
         placeholder="Contraseña"
-        value={values.password}
+        value={form.password}
         onChangeText={(text) => handleChange('password', text)}
-        error={touched.password ? errors.password : undefined}
         secureTextEntry
       />
       <CustomButton
         onPress={handleSubmit}
         text="Iniciar sesión"
-        loading={isSubmitting}
-        disabled={isSubmitting}
+        loading={isLoading}
+        disabled={isLoading}
       />
     </View>
   );
@@ -2553,11 +2526,8 @@ const {
   key: string,                              // Clave única (ej: "firestore:territories")
   fetcher: async () => T,                   // Función que trae datos
   {
-    revalidateOnFocus: boolean,             // Revalidar al enfocar app (def: true)
-    revalidateOnReconnect: boolean,         // Revalidar cuando vuelve internet (def: true)
-    dedupingInterval: number,               // ms para deduplicar requests iguales (def: 1000)
-    ttl: number,                            // Tiempo de vida del cache (def: 24h)
-    errorRetryCount: number,                // Reintentos en error (def: 3)
+    ttl: number,                            // Tiempo de vida del cache en ms (ej: 86400000 = 24h)
+    // Opciones estándar de SWR heredadas: revalidateOnFocus, errorRetryCount, etc.
   }
 );
 ```
@@ -2604,7 +2574,6 @@ const { data: territories } = useOfflineSWR<Territory[]>(
     return await territoriesFetcher();
   },
   {
-    revalidateOnReconnect: true,
     ttl: 1000 * 60 * 60 * 24,  // 24 horas
   }
 );
@@ -2639,54 +2608,50 @@ const { congregations } = useCongregation();
 
 ---
 
-### 11.10 `useForm()` — Manejo de formularios
+### 11.10 `useForm()` — Manejo básico de formularios
 
-**Propósito:** Hook genérico para manejar estado de formularios, validaciones y submits.
+**Propósito:** Hook básico para manejar estado de formularios y cambios de valores. **No incluye validación integrada.**
 
 **Estado:**
 ```typescript
 const {
-  values,             // { [fieldName]: value }
-  errors,             // { [fieldName]: errorMessage }
-  touched,            // { [fieldName]: boolean } - si fue tocado
-  isSubmitting,       // Enviando formulario
+  form,               // { [fieldName]: value } - estado actual del formulario
   
   // Handlers
   handleChange(),     // (fieldName, value) → actualizar valor
-  handleBlur(),       // (fieldName) → marcar como tocado
-  handleSubmit(),     // (async callback) → ejecutar con validaciones
-  setValues(),        // Actualizar valores en batch
-  setErrors(),        // Actualizar errores manualmente
-  resetForm(),        // Limpiar formulario
-} = useForm({
-  initialValues: { email: '', password: '' },
-  validationSchema: yupSchema,  // O esquema custom
-  onSubmit: async (values) => { /* ... */ },
-});
+  setForm(),          // Establecer formulario completo
+  resetForm(),        // Resetear al estado inicial
+} = useForm(initialState);
 ```
 
 **Características:**
-- ✅ Validaciones integradas (yup, zod, custom)
-- ✅ Manejo automático de errores
-- ✅ Debouncing opcional para validaciones
-- ✅ Integración con componentes de input
+- ✅ Estado simple y reutilizable
+- ✅ Sin dependencias adicionales
+- ✅ Manejo de cambios eficiente con `useCallback`
+- ✅ Nota: Validaciones deben hacerse en el componente o custom hook extendido
 
 **Uso:**
 ```typescript
 // app/(auth)/login.tsx
-const { values, errors, handleChange, handleSubmit } = useForm({
-  initialValues: { email: '', password: '' },
-  onSubmit: async (values) => {
-    await loginUser(values.email, values.password);
-  },
+const { form, handleChange, resetForm } = useForm({
+  email: '',
+  password: '',
 });
 
 <CustomTextInput
-  value={values.email}
+  value={form.email}
   onChangeText={(text) => handleChange('email', text)}
-  error={errors.email}
 />
-<CustomButton onPress={handleSubmit} text="Iniciar sesión" />
+<CustomButton 
+  onPress={async () => {
+    try {
+      await loginUser(form.email, form.password);
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  }} 
+  text="Iniciar sesión" 
+/>
 ```
 
 ---
@@ -2763,43 +2728,38 @@ const { location } = useLocation();
 
 ---
 
-### 11.13 `useTerritoriesAdmin()` — Gestión avanzada de territorios (Admin)
+### 11.13 `useTerritoriesAdmin()` — Gestión básica de territorios (Admin)
 
-**Propósito:** Hook especializado para operaciones administrativas de territorios (batch, importación, etc.).
+**Propósito:** Hook especializado para operaciones administrativas de territorios (CRUD básico).
 
 **Estado:**
 ```typescript
 const {
-  territories,        // Array de Territory[]
-  isLoading,          // Cargando
-  isBatchProcessing,  // Procesando operación batch
-  batchError,         // Error en operación batch
-  
-  // Operaciones batch
-  markAllAsReady(),   // Marcar todos como listos
-  reassignAll(),      // Reasignar todos a otro grupo
-  exportToCSV(),      // Exportar territorios a CSV
-  importFromCSV(),    // Importar territorios desde CSV
+  // Operaciones CRUD básicas
+  createTerritory(),  // Crear territorio
+  updateTerritory(),  // Actualizar territorio
+  deleteTerritory(),  // Eliminar territorio
+  assignUser(),       // Asignar usuario a territorio (FUTURO)
 } = useTerritoriesAdmin();
 ```
 
+**Nota:** Operaciones batch (marcar todos, reassign, CSV) son **FUTURO**, no implementadas aún.
+
 **Características:**
-- ✅ Operaciones paralelo para performance
-- ✅ Manejo de errores granular por item
-- ✅ Progreso de batch (opcional)
-- ✅ Rollback en caso de falla crítica
+- ✅ CRUD directo sin cache (similar a useTerritory() pero sin sync offline)
+- ✅ Validaciones de rol en cliente
+- ✅ Manejo de errores básico
 
 **Uso:**
 ```typescript
-// app/(tabs)/admin/ - Panel avanzado
-const { markAllAsReady, isBatchProcessing } = useTerritoriesAdmin();
+// app/(tabs)/admin/ - Crear/editar/eliminar territorios
+const { createTerritory, updateTerritory, deleteTerritory } = useTerritoriesAdmin();
 
-<Button
-  onPress={markAllAsReady}
-  text="Marcar todos como listos"
-  loading={isBatchProcessing}
-/>
+await createTerritory({ name: 'Nuevo', zone: 'Centro' });
+await deleteTerritory(territoryId);
 ```
+
+**Nota:** Para operaciones complejas (batch, CSV), se recomienda usar `useTerritory()` + `territoryService` directamente.
 
 ---
 
