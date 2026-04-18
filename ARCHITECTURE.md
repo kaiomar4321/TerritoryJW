@@ -14,7 +14,7 @@
 - **Base de datos / Auth**: Firebase (Firestore + Authentication)
 - **Routing**: Expo Router (file-based, carpeta `app/`)
 - **Estructura de rutas**: dos grupos — `(auth)` para sesiones y `(tabs)` para la app principal
-- **Estado global**: Context API (`src/context/`)
+- **Tema (UI)**: NativeWind + ThemeContext (`src/context/ThemeContext.tsx`) — light/dark/system
 - **Lógica de negocio**: encapsulada en `src/hooks/` y `src/services/`
 - **No usar**: `fetch` directo en componentes, lógica de negocio dentro de pantallas, estilos inline salvo casos triviales
 
@@ -26,7 +26,7 @@ Aplicación móvil de gestión de territorios para organizaciones que realizan v
 
 **Usuarios principales:**
 - **Administradores**: gestionan territorios, grupos y usuarios
-- **Visitantes**: consultan territorios asignados y registran visitas
+- **Usuarios**: consultan territorios asignados y registran visitas
 
 **Stack:**
 - Expo (managed) · TypeScript · NativeWind · Firebase · Expo Router
@@ -53,7 +53,8 @@ Aplicación móvil de gestión de territorios para organizaciones que realizan v
 │
 └── src/                        # Lógica de la aplicación
     ├── config/                 # Configuración de Firebase, constantes globales y env
-    ├── context/                # Context API: estado global compartido entre pantallas
+    ├── context/                # Context API: estado compartido (ThemeContext para tema claro/oscuro)
+    │   └── ThemeContext.tsx    # Maneja preferencia de tema + persiste en AsyncStorage
     ├── hooks/                  # Custom hooks: lógica reutilizable con estado local o global
     ├── services/               # Llamadas a Firebase/Firestore, sin estado propio
     ├── types/                  # Tipos e interfaces TypeScript compartidos
@@ -70,7 +71,7 @@ Aplicación móvil de gestión de territorios para organizaciones que realizan v
 | `components/` | Renderizar UI, recibir props, emitir eventos | Llamar a servicios directamente ni manejar estado global |
 | `src/services/` | Comunicarse con Firebase (leer/escribir) | Tener estado, hooks o lógica de UI |
 | `src/hooks/` | Orquestar servicios + estado local/global | Renderizar JSX |
-| `src/context/` | Compartir estado global entre pantallas | Contener lógica de negocio compleja |
+| `src/context/` | Compartir estado del tema (light/dark/system) + persistencia | Lógica de negocio o estado de datos |
 | `src/types/` | Definir interfaces y tipos compartidos | Importar desde `components/` |
 | `src/utils/` | Funciones puras sin efectos secundarios | Llamar a servicios ni usar hooks |
 
@@ -101,9 +102,12 @@ Aplicación móvil de gestión de territorios para organizaciones que realizan v
 - La configuración de Firebase vive en `src/config/`
 
 ### Estado global
-- El estado global se gestiona con Context API en `src/context/`
+- **Tema (UI)**: Gestionado con `ThemeContext` en `src/context/ThemeContext.tsx`
+  - Controla modo light/dark/system
+  - Persiste preferencia del usuario en AsyncStorage
+  - Se integra con NativeWind para aplicar estilos Tailwind dinámicamente
 - Para estado local de una pantalla, usar `useState` / `useReducer` dentro de un hook
-- Si un estado se necesita en más de dos pantallas, moverlo a un context
+- Para estado de datos global (futuro): considerar agregar nuevos contexts en `src/context/`
 
 ---
 
@@ -111,9 +115,10 @@ Aplicación móvil de gestión de territorios para organizaciones que realizan v
 
 ```
 Pantalla (app/)
+  ├── lee tema → ThemeContext (src/context/ThemeContext.tsx)
   └── llama a → Hook (src/hooks/)
                   ├── lee/escribe en → Service (src/services/) → Firebase
-                  └── lee/actualiza → Context (src/context/)
+                  └── [futuro: otros contexts si se necesitan]
 ```
 
 Los componentes reciben datos únicamente por props o leyendo un context. Nunca llaman a servicios directamente.
@@ -454,31 +459,28 @@ match /territories/{doc=**} {
 
 #### 📋 `users` — Información de usuarios y autenticación
 **Storage:** Firebase Auth + Firestore (sync)
-**Propósito:** Almacenar perfil, rol y permisos de usuarios
+**Propósito:** Almacenar perfil, rol y datos del usuario
 
-| Campo | Tipo | Requerido | Descripción | Índice |
-|---|---|---|---|---|
-| `uid` | `string` | ✅ | ID de Firebase Auth (PK) | Primary |
-| `email` | `string` | ✅ | Email único del usuario | Unique |
-| `role` | `'user' \| 'admin' \| 'superadmin'` | ✅ | Nivel de acceso | ❌ |
-| `name` | `string` | ✅ | Nombre completo | ❌ |
-| `congregationId` | `string` | ❌ | FK a congregations | ✅ |
-| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
-| `updatedAt` | `Date` | ❌ | Última actualización | ❌ |
-| `isActive` | `boolean` | ❌ | Si el usuario está activo (def: true) | ❌ |
-| `lastLogin` | `Date` | ❌ | Último acceso | ❌ |
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `id` | `string` | ✅ | Identificador local del usuario |
+| `uid` | `string` | ❌ | ID de Firebase Auth (PK sincronizado) |
+| `email` | `string` | ✅ | Email único del usuario |
+| `displayName` | `string` | ✅ | Nombre completo |
+| `photoURL` | `string` | ❌ | URL de foto de perfil |
+| `role` | `'user' \| 'admin' \| 'superadmin'` | ✅ | Nivel de acceso |
+| `createdAt` | `string \| number` | ❌ | Timestamp de creación |
 
 **Ejemplo:**
-```json
+```typescript
 {
-  "uid": "gN4xQ9kL2z1mP...",
-  "email": "maria@congregation.org",
-  "role": "admin",
-  "name": "María González",
-  "congregationId": "cong_001",
-  "createdAt": 1713427200,
-  "isActive": true,
-  "lastLogin": 1713513600
+  id: "user_001",
+  uid: "gN4xQ9kL2z1mP...",
+  email: "maria@congregation.org",
+  displayName: "María González",
+  photoURL: "https://...",
+  role: "admin",
+  createdAt: 1713427200
 }
 ```
 
@@ -491,37 +493,46 @@ match /territories/{doc=**} {
 **Storage:** Firestore (con sincronización offline local)
 **Propósito:** Almacenar polígonos geográficos y metadata de territorios
 
-| Campo | Tipo | Requerido | Descripción | Índice |
-|---|---|---|---|---|
-| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
-| `name` | `string` | ✅ | Nombre del territorio | ✅ |
-| `number` | `number` | ✅ | Número de identificación | ✅ |
-| `coordinates` | `Array<{lat: number, lng: number}>` | ✅ | Puntos del polígono (mín 3) | Geo |
-| `color` | `string` | ✅ | Color RGBA para mapa (def: "rgba(255,0,0,0.8)") | ❌ |
-| `groupId` | `string` | ❌ | FK a groups (asignación) | ✅ |
-| `status` | `'available' \| 'assigned' \| 'completed'` | ❌ | Estado del territorio | ✅ |
-| `createdBy` | `string` | ✅ | FK a users (uid del creador) | ❌ |
-| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
-| `lastModified` | `number` | ❌ | Timestamp de última modificación | ❌ |
-| `synced` | `boolean` | ❌ | Si está sincronizado con Firestore | ❌ |
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) |
+| `name` | `string` | ✅ | Nombre del territorio |
+| `number` | `number` | ✅ | Número de identificación |
+| `coordinates` | `Array<{latitude: number, longitude: number}>` | ✅ | Puntos del polígono (mín 3) |
+| `color` | `string` | ✅ | Color RGBA para mapa |
+| `groupId` | `string \| null` | ❌ | FK a groups (asignación) |
+| `createdBy` | `string` | ✅ | UID del creador |
+| `createdAt` | `any` | ✅ | Timestamp de creación |
+| `lastModified` | `number` | ✅ | Timestamp UNIX de última modificación |
+| `visitStartDate` | `string \| null` | ❌ | Fecha inicio de visita |
+| `visitEndDate` | `string \| null` | ❌ | Fecha fin de visita |
+| `note` | `string` | ❌ | Notas sobre el territorio |
+| `couples` | `number` | ❌ | Número de parejas |
+| `hours` | `number` | ❌ | Horas de visita |
+| `synced` | `boolean` | ❌ | Si está sincronizado con Firestore |
 
 **Ejemplo:**
-```json
+```typescript
 {
-  "id": "terr_001",
-  "name": "Centro Histórico",
-  "number": 42,
-  "coordinates": [
-    {"lat": 40.7128, "lng": -74.0060},
-    {"lat": 40.7138, "lng": -74.0050},
-    {"lat": 40.7118, "lng": -74.0070}
+  id: "terr_001",
+  name: "Centro Histórico",
+  number: 42,
+  coordinates: [
+    { latitude: 40.7128, longitude: -74.0060 },
+    { latitude: 40.7138, longitude: -74.0050 },
+    { latitude: 40.7118, longitude: -74.0070 }
   ],
-  "color": "rgba(0, 150, 255, 0.8)",
-  "groupId": "group_001",
-  "status": "assigned",
-  "createdBy": "gN4xQ9kL2z1mP...",
-  "createdAt": 1713427200,
-  "synced": true
+  color: "rgba(0, 150, 255, 0.8)",
+  groupId: "group_001",
+  createdBy: "uid_admin",
+  createdAt: 1713427200,
+  lastModified: 1713513600,
+  visitStartDate: "2024-04-15",
+  visitEndDate: "2024-04-30",
+  note: "Zona residencial, evitar domingos",
+  couples: 2,
+  hours: 6,
+  synced: true
 }
 ```
 
@@ -536,30 +547,26 @@ match /territories/{doc=**} {
 
 #### 👥 `groups` — Grupos de visitadores
 **Storage:** Firestore (con caché local)
-**Propósito:** Agrupar usuarios y asignar territorios a grupos
+**Propósito:** Agrupar territorios bajo coordinación de un líder
 
-| Campo | Tipo | Requerido | Descripción | Índice |
-|---|---|---|---|---|
-| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
-| `name` | `string` | ✅ | Nombre del grupo | ✅ |
-| `description` | `string` | ❌ | Descripción (propósito o zona) | ❌ |
-| `territoryIds` | `Array<string>` | ❌ | FK array a territories | ❌ |
-| `memberIds` | `Array<string>` | ❌ | FK array a users (uids) | ❌ |
-| `createdBy` | `string` | ✅ | FK a users (uid del creador) | ❌ |
-| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
-| `updatedAt` | `Date` | ❌ | Última actualización | ❌ |
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) |
+| `number` | `number` | ✅ | Número del grupo |
+| `leaderId` | `string` | ✅ | UID del encargado/líder del grupo |
+| `territoryIds` | `Array<string>` | ✅ | FK array a territories |
+| `createdAt` | `string` | ✅ | Timestamp de creación |
+| `updatedAt` | `string` | ✅ | Última actualización |
 
 **Ejemplo:**
-```json
+```typescript
 {
-  "id": "group_001",
-  "name": "Grupo Centro",
-  "description": "Responsables del territorio centro histórico",
-  "territoryIds": ["terr_001", "terr_002", "terr_003"],
-  "memberIds": ["uid_maria", "uid_juan"],
-  "createdBy": "gN4xQ9kL2z1mP...",
-  "createdAt": 1713427200,
-  "updatedAt": 1713513600
+  id: "group_001",
+  number: 1,
+  leaderId: "uid_maria",
+  territoryIds: ["terr_001", "terr_002", "terr_003"],
+  createdAt: "2024-01-15",
+  updatedAt: "2024-04-18"
 }
 ```
 
@@ -575,63 +582,68 @@ match /territories/{doc=**} {
 ---
 
 #### 🏠 `avoidHouses` — Casas a evitar (motivos especiales)
-**Storage:** Firestore
-**Propósito:** Registrar casas con restricciones (mascotas, peligrosas, rechazos, etc.)
+**Storage:** Firestore (con suscripción en tiempo real + SWR)
+**Propósito:** Registrar casas con restricciones por territorio (rechazo, mascotas, peligrosas, etc.)
 
-| Campo | Tipo | Requerido | Descripción | Índice |
-|---|---|---|---|---|
-| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
-| `territoryId` | `string` | ✅ | FK a territories | ✅ |
-| `address` | `string` | ✅ | Dirección de la casa | ✅ |
-| `reason` | `string` | ✅ | Motivo de restricción (ej: "Perro agresivo") | ❌ |
-| `coordinates` | `{latitude: number, longitude: number}` | ✅ | Ubicación GPS | Geo |
-| `createdBy` | `string` | ✅ | FK a users (uid quien la registró) | ❌ |
-| `createdAt` | `Date` | ✅ | Fecha de registro | ✅ |
-| `updatedAt` | `Date` | ❌ | Última modificación | ❌ |
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) |
+| `territoryId` | `string` | ✅ | FK a territories |
+| `address` | `string` | ✅ | Dirección completa |
+| `reason` | `string` | ✅ | Motivo de restricción (ej: "no quiere ser molestada") |
+| `coordinates` | `{latitude: number, longitude: number}` | ✅ | Ubicación GPS exacta |
+| `createdBy` | `string` | ✅ | UID del usuario que la registró |
+| `createdAt` | `Timestamp` | ✅ | Fecha/hora de registro |
 
 **Ejemplo:**
-```json
+```typescript
 {
-  "id": "house_001",
-  "territoryId": "terr_001",
-  "address": "Calle Principal 123, Apartamento 4B",
-  "reason": "Perro grande y agresivo",
-  "coordinates": {"latitude": 40.7128, "longitude": -74.0060},
-  "createdBy": "uid_maria",
-  "createdAt": 1713427200,
-  "updatedAt": 1713513600
+  id: "house_001",
+  territoryId: "rw3Mseg7L65RIvEu3jck",
+  address: "prolongacion independencia #32",
+  reason: "no quiere ser molestada",
+  coordinates: {
+    latitude: 19.52548932290964,
+    longitude: -101.61208748817444
+  },
+  createdBy: "HyypnXh84kZpdoIwl8PHIZmNO382",
+  createdAt: Timestamp(2025-12-31T10:05:29Z)
 }
 ```
+
+**Características:**
+- ✅ Sincronización en tiempo real con `onSnapshot` (listener activo)
+- ✅ Caché con SWR: stale-while-revalidate automático
+- ✅ Mutaciones invalidadas automáticamente en Firestore
+- ✅ Coordenadas para ubicación precisa en mapa
 
 **Operaciones (Service):** `houseService.ts`
 - `getHousesByTerritory(territoryId)` — Leer casas de un territorio
 - `addHouse(territoryId, address, reason, userId, coordinates)` — Registrar casa
 - `updateHouse(houseId, updates)` — Actualizar info
 - `deleteHouse(houseId)` — Eliminar
-- `subscribeToHousesByTerritory(territoryId, callback)` — Suscribirse a cambios en tiempo real
+- `subscribeToHousesByTerritory(territoryId, callback)` — Suscripción en tiempo real con mutate SWR
 
 ---
 
 #### ⛪ `congregations` — Organizaciones (iglesias, grupos, etc.)
 **Storage:** Firestore
-**Propósito:** Múltiples organizaciones independientes usando la app
+**Propósito:** Información sobre las congregaciones/organizaciones usando la app
 
-| Campo | Tipo | Requerido | Descripción | Índice |
-|---|---|---|---|---|
-| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
-| `name` | `string` | ✅ | Nombre de la congregación | ✅ |
-| `country` | `string` | ❌ | País | ❌ |
-| `region` | `string` | ❌ | Región / Estado | ❌ |
-| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) |
+| `name` | `string` | ✅ | Nombre de la congregación |
+| `location` | `string` | ❌ | Ubicación / dirección |
+| `createdAt` | `number` | ✅ | Timestamp de creación |
 
 **Ejemplo:**
-```json
+```typescript
 {
-  "id": "cong_001",
-  "name": "Congregación Centro",
-  "country": "España",
-  "region": "Comunidad de Madrid",
-  "createdAt": 1713427200
+  id: "cong_001",
+  name: "Congregación Centro",
+  location: "Madrid, España",
+  createdAt: 1713427200
 }
 ```
 
@@ -648,11 +660,11 @@ match /territories/{doc=**} {
 | Relación | De | A | Tipo | Campo | Nota |
 |---|---|---|---|---|---|
 | Usuario → Territorio | `users` | `territories` | 1:many | `territories.createdBy` | Un usuario crea múltiples territorios |
-| Territorio → Grupo | `territories` | `groups` | many:many | `territories.groupId` / `groups.territoryIds` | Un territorio puede estar en un grupo; un grupo puede tener múltiples territorios |
-| Grupo → Usuario | `groups` | `users` | many:many | `groups.memberIds` | Un grupo tiene múltiples usuarios; un usuario puede estar en múltiples grupos |
-| Casa → Territorio | `avoidHouses` | `territories` | many:1 | `avoidHouses.territoryId` | Múltiples casas por territorio |
-| Casa → Usuario | `avoidHouses` | `users` | many:1 | `avoidHouses.createdBy` | Quién registró la restricción |
-| Usuario → Congregación | `users` | `congregations` | many:1 | `users.congregationId` | Múltiples usuarios por congregación |
+| Territorio → Grupo | `territories` | `groups` | many:1 | `territories.groupId` | Un territorio se asigna a un grupo |
+| Grupo → Territorio | `groups` | `territories` | 1:many | `groups.territoryIds` | Un grupo gestiona múltiples territorios |
+| Grupo → Usuario (líder) | `groups` | `users` | many:1 | `groups.leaderId` | Cada grupo tiene un líder |
+| Territorio → Casa (restricción) | `territories` | `avoidHouses` | 1:many | `avoidHouses.territoryId` | Un territorio puede tener múltiples casas a evitar |
+| Usuario → Casa (registró) | `users` | `avoidHouses` | 1:many | `avoidHouses.createdBy` | Un usuario registra múltiples casas |
 
 ---
 
@@ -660,18 +672,18 @@ match /territories/{doc=**} {
 
 **Índices simples (Auto-creados):**
 ```
-✅ users:        email, role, congregationId
-✅ territories:  name, number, status, groupId
-✅ groups:       name
-✅ avoidHouses:  territoryId, createdAt, coordinates (GEO)
+✅ users:        email, role
+✅ territories:  name, number, groupId, createdBy
+✅ groups:       number, leaderId
+✅ avoidHouses:  territoryId, createdAt (para query por territorio y ordenar)
 ✅ congregations: name
 ```
 
-**Índices compuestos (Crear manualmente si hay queries complejas):**
+**Índices compuestos (si hay queries complejas):**
 ```
-territories:   (createdBy, status)
-avoidHouses:   (territoryId, createdAt)  ← si quieres ordenar casas por territorio y fecha
-groups:        (createdBy, createdAt)    ← si quieres historiales por creador
+territories:   (createdBy, lastModified)
+groups:        (leaderId, createdAt)
+avoidHouses:   (territoryId, createdAt)  ← para listar casas por territorio ordenadas por fecha
 ```
 
 > **Nota:** Firestore sugiere automáticamente índices cuando consultas las requieren. Monitorear Firestore Console → Indexes.
@@ -680,13 +692,13 @@ groups:        (createdBy, createdAt)    ← si quieres historiales por creador
 
 ### 6.5 Relación Service → Colección
 
-| Colección | Service Principal | Fetcher | Caché Local |
+| Colección | Service Principal | Tipo de Dato | Sincronización |
 |---|---|---|---|
-| `users` | `userService.ts` | — | ❌ AsyncStorage (solo sesión) |
-| `territories` | `territoryService.ts` | `territoriesFetcher` | ✅ `localDB` (sincronización) |
-| `groups` | `groupService.ts` | — | ✅ `localDB` (sincronización) |
-| `avoidHouses` | `houseService.ts` | `housesFetcher` | ❌ SWR en memoria |
-| `congregations` | `congregationService.ts` | — | ❌ SWR en memoria |
+| `users` | `userService.ts` | Auth + Firestore | Sesión (AsyncStorage) |
+| `territories` | `territoryService.ts` | Firestore | Sincronización local + caché |
+| `groups` | `groupService.ts` | Firestore | Sincronización local + caché |
+| `avoidHouses` | `houseService.ts` | Firestore | Listeners en tiempo real + SWR |
+| `congregations` | `congregationService.ts` | Firestore | SWR en memoria |
 
 ---
 
@@ -1021,7 +1033,164 @@ const markAllReady = async () => {
 
 ---
 
-## 6.7 Patrones de Validación y Manejo de Errores
+## 6.7 Gestión de Estado Global con Context
+
+### 📱 ThemeContext — Estado del tema actual
+
+**Ubicación:** [src/context/ThemeContext.tsx](src/context/ThemeContext.tsx)
+
+**Propósito:** Compartir la preferencia de tema (light/dark/system) entre todas las pantallas y componentes.
+
+**Implementación:**
+```typescript
+// src/context/ThemeContext.tsx - Estado + Provider + Hook personalizado
+
+type Theme = 'light' | 'dark' | 'system';
+
+interface ThemeContextType {
+  theme: Theme;                  // Tema actual
+  isDark: boolean;               // Booleano derivado (para condicionales rápidos)
+  setTheme: (theme: Theme) => void;  // Setter + persist en AsyncStorage
+}
+
+export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // 1. Cargar tema guardado de AsyncStorage al iniciar
+  useEffect(() => {
+    (async () => {
+      const savedTheme = await AsyncStorage.getItem('app-theme');
+      if (savedTheme) setThemeState(savedTheme);
+    })();
+  }, []);
+
+  // 2. Cambiar tema + aplicar a NativeWind + guardar persistencia
+  const setTheme = async (newTheme: Theme) => {
+    setThemeState(newTheme);
+    setColorScheme(newTheme === 'system' ? 'system' : newTheme);
+    await AsyncStorage.setItem('app-theme', newTheme);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, isDark, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+// Hook personalizado para consumir
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) throw new Error('useTheme debe usarse dentro de ThemeProvider');
+  return context;
+};
+```
+
+**Uso en componentes:**
+```typescript
+// app/(tabs)/profile.tsx o cualquier pantalla
+import { useTheme } from '~/context/ThemeContext';
+
+export default function ProfileScreen() {
+  const { theme, isDark, setTheme } = useTheme();
+
+  return (
+    <View className={isDark ? 'bg-black' : 'bg-white'}>
+      {/* Componentes se adaptan automáticamente al tema */}
+      <Button onPress={() => setTheme('dark')}>Modo oscuro</Button>
+    </View>
+  );
+}
+```
+
+**Características:**
+- ✅ **Persistencia**: Tema guardado en AsyncStorage → persiste entre sesiones
+- ✅ **Integración NativeWind**: Cambia automáticamente las clases Tailwind (`dark:` aplicadas correctamente)
+- ✅ **Hook personalizado**: Acceso simple con `const { isDark } = useTheme()`
+- ✅ **Sin dependencias externas**: Solo Context API nativa + AsyncStorage
+
+---
+
+### 🔄 Cómo agregar un nuevo Context (futuro)
+
+Si necesitas compartir más estado global, sigue este patrón:
+
+#### 1. Crear el archivo de context
+```typescript
+// src/context/MiContext.tsx
+import React, { createContext, useContext, ReactNode, useState } from 'react';
+
+interface MiContextType {
+  // Define los valores/funciones que compartirá
+  miValor: string;
+  setMiValor: (valor: string) => void;
+}
+
+const MiContext = createContext<MiContextType | undefined>(undefined);
+
+export const MiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [miValor, setMiValor] = useState('inicial');
+
+  return (
+    <MiContext.Provider value={{ miValor, setMiValor }}>
+      {children}
+    </MiContext.Provider>
+  );
+};
+
+export const useMi = () => {
+  const context = useContext(MiContext);
+  if (!context) {
+    throw new Error('useMi debe usarse dentro de MiProvider');
+  }
+  return context;
+};
+```
+
+#### 2. Envolver la app con el Provider
+```typescript
+// app/_layout.tsx - Layout raíz de la app
+import { ThemeProvider } from '~/context/ThemeContext';
+import { MiProvider } from '~/src/context/MiContext';
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <MiProvider>  {/* ← Agregar aquí nuevos contexts */}
+          <Slot />    {/* El resto de la app */}
+        </MiProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+```
+
+> **Nota:** Los providers se envuelven en `app/_layout.tsx` (layout raíz de Expo Router), no en `App.tsx`.
+
+#### 3. Usar en componentes
+```typescript
+import { useMi } from '~/src/context/MiContext';
+
+export default function MiComponente() {
+  const { miValor, setMiValor } = useMi();
+  // Usar como cualquier otro state
+}
+```
+
+#### ⚠️ Cuándo usar Context y cuándo NO
+
+**✅ Usar Context para:**
+- Estado visual UI (tema, idioma, preferencias de usuario)
+- Estado pequeño que se necesita en múltiples pantallas (>2)
+- Persistencia opcional en AsyncStorage
+
+**❌ NO usar Context para:**
+- Datos complejos o de negocio → usar hooks + services
+- Estado que cambia frecuentemente → considerar Zustand/Redux
+- Datos remotos → siempre usar `useOfflineSWR` o SWR directo
+
+---
+
+## 6.8 Patrones de Validación y Manejo de Errores
 
 ### Validación de Formularios
 
@@ -1705,9 +1874,10 @@ Cuando crees un nuevo formulario o realizas una operación que requiera validaci
 **Consecuencia:** Acoplamiento al ecosistema de Google; toda la lógica de datos debe pasar por `src/services/` para facilitar una eventual migración.
 
 ### ADR-03: Context API sobre Zustand/Redux
-**Contexto:** App de complejidad media con pocos estados verdaderamente globales.
+**Contexto:** App de complejidad media con pocos estados verdaderamente globales. Actualmente: gestión de tema (light/dark/system).
 **Decisión:** Context API nativa para evitar dependencias adicionales de estado.
-**Consecuencia:** Si el estado global crece significativamente en complejidad, evaluar migración a Zustand.
+**Implementación actual:** `ThemeContext.tsx` → maneja tema + persistencia en AsyncStorage.
+**Consecuencia:** Si el estado global crece significativamente en complejidad (ej: múltiples contexts), evaluar migración a Zustand o Redux.
 
 ### ADR-04: NativeWind para estilos
 **Contexto:** Necesidad de consistencia visual y velocidad de desarrollo.
@@ -2142,11 +2312,11 @@ Documentación detallada de cada hook en `src/hooks/` y su propósito específic
 **Estado:**
 ```typescript
 const {
-  userData,           // { uid, email, name, role, congregationId, ... }
+  userData,           // { id, uid, email, displayName, photoURL, role, createdAt }
   isLoading,          // Cargando datos iniciales
   error,              // Error si falló la autenticación
   isAuthenticated,    // Booleano de sesión activa
-  registerUser(),     // async (email, password, name, role?) → crear cuenta
+  registerUser(),     // async (email, password, displayName, role?) → crear cuenta
   loginUser(),        // async (email, password) → iniciar sesión
   logoutUser(),       // async () → cerrar sesión
   updateUser(),       // async (updates) → editar perfil
