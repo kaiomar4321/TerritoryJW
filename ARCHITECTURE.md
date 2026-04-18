@@ -1064,6 +1064,647 @@ const markAllReady = async () => {
 | **Cambios en tiempo real** | `useOfflineSWR` + `onSnapshot` | ✅ SWR + listeners | `useHouses()` |
 | **Listar + admin (no offline)** | SWR simple | ❌ En memoria | `useUsers()` |
 
+---
+
+## 6.7 Patrones de Validación y Manejo de Errores
+
+### Validación de Formularios
+
+#### 🎯 Validación en capas (cliente + servidor)
+
+Toda validación de formularios se realiza en **DOS lugares** para máxima robustez:
+
+**1️⃣ Cliente (UX inmediata):**
+```typescript
+// components/CustomTextInput.tsx - Validación mientras el usuario escribe
+export interface CustomTextInputProps {
+  value: string;
+  onChangeText: (text: string) => void;
+  error?: string;  // Mostrar error debajo del input
+  placeholder?: string;
+}
+
+export function CustomTextInput({ value, onChangeText, error }: CustomTextInputProps) {
+  return (
+    <View>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        className={cn(
+          'px-4 py-2 rounded border',
+          error ? 'border-red-500' : 'border-gray-300'
+        )}
+      />
+      {error && <Text className="text-red-500 text-sm mt-1">{error}</Text>}
+    </View>
+  );
+}
+```
+
+**2️⃣ Servidor (Firestore Rules + Cloud Functions):**
+```firestore
+// firestore.rules - Validar estructura de datos
+match /users/{userId} {
+  allow create: if 
+    request.resource.data.email is string &&
+    request.resource.data.email.size() > 0 &&
+    request.resource.data.name is string &&
+    request.resource.data.name.size() > 0 &&
+    request.resource.data.role in ['user', 'admin', 'superadmin'];
+}
+```
+
+#### 📋 Esquema de validación con Yup/Zod
+
+Se recomienda usar **Yup** (más legible) o **Zod** (más seguro en tipos) para definir esquemas reutilizables:
+
+```typescript
+// src/utils/validationSchemas.ts
+import * as yup from 'yup';
+
+export const loginSchema = yup.object().shape({
+  email: yup
+    .string()
+    .email('Correo inválido')
+    .required('El correo es requerido'),
+  password: yup
+    .string()
+    .min(6, 'Mínimo 6 caracteres')
+    .required('La contraseña es requerida'),
+});
+
+export const territorySchema = yup.object().shape({
+  name: yup
+    .string()
+    .required('El nombre es requerido')
+    .min(3, 'Mínimo 3 caracteres')
+    .max(50, 'Máximo 50 caracteres'),
+  number: yup
+    .number()
+    .required('El número es requerido')
+    .positive('Debe ser un número positivo'),
+  color: yup
+    .string()
+    .matches(/^rgba?\(/, 'Color inválido'),
+});
+
+export const groupSchema = yup.object().shape({
+  name: yup
+    .string()
+    .required('El nombre es requerido')
+    .min(3, 'Mínimo 3 caracteres'),
+  description: yup
+    .string()
+    .optional()
+    .max(200, 'Máximo 200 caracteres'),
+});
+
+export const houseSchema = yup.object().shape({
+  address: yup
+    .string()
+    .required('La dirección es requerida')
+    .min(5, 'Mínimo 5 caracteres'),
+  reason: yup
+    .string()
+    .optional()
+    .max(200, 'Máximo 200 caracteres'),
+});
+```
+
+#### 🔄 Integración con `useForm()` Hook
+
+```typescript
+// app/(auth)/login.tsx
+import { useForm } from '~/hooks/useForm';
+import { loginSchema } from '~/utils/validationSchemas';
+
+export default function LoginScreen() {
+  const { values, errors, touched, isSubmitting, handleChange, handleSubmit } = useForm({
+    initialValues: { email: '', password: '' },
+    validationSchema: loginSchema,
+    onSubmit: async (values) => {
+      try {
+        await loginUser(values.email, values.password);
+        // Navegar a home
+      } catch (error) {
+        setLoginError(error.message);
+      }
+    },
+  });
+
+  return (
+    <View>
+      <CustomTextInput
+        placeholder="Correo"
+        value={values.email}
+        onChangeText={(text) => handleChange('email', text)}
+        error={touched.email ? errors.email : undefined}
+      />
+      <CustomTextInput
+        placeholder="Contraseña"
+        value={values.password}
+        onChangeText={(text) => handleChange('password', text)}
+        error={touched.password ? errors.password : undefined}
+        secureTextEntry
+      />
+      <CustomButton
+        onPress={handleSubmit}
+        text="Iniciar sesión"
+        loading={isSubmitting}
+        disabled={isSubmitting}
+      />
+    </View>
+  );
+}
+```
+
+#### ✅ Validaciones personalizadas
+
+Para lógica más compleja, agregar validadores custom:
+
+```typescript
+// src/utils/customValidators.ts
+export const validateEmailUnique = async (email: string) => {
+  // Verificar si el email ya existe en Firestore
+  const existingUser = await userService.getUserByEmail(email);
+  if (existingUser) {
+    throw new Error('El correo ya está registrado');
+  }
+};
+
+export const validateTerritoryCoordinates = (coordinates: Coordinate[]) => {
+  if (coordinates.length < 3) {
+    throw new Error('Se requieren al menos 3 puntos para crear un territorio');
+  }
+  
+  // Validar que no sean colineales (todos en línea recta)
+  const area = calculatePolygonArea(coordinates);
+  if (area < 100) {  // Área mínima en metros cuadrados
+    throw new Error('El territorio es muy pequeño');
+  }
+};
+
+// Uso en validación:
+export const registerSchema = yup.object().shape({
+  email: yup
+    .string()
+    .email()
+    .required()
+    .test('unique-email', 'Este correo ya está registrado', 
+      async (value) => {
+        if (!value) return true;
+        try {
+          await validateEmailUnique(value);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    ),
+});
+```
+
+---
+
+### Comunicación de Errores al Usuario
+
+#### 🎨 Componentes de Error
+
+**1. AlertError (para errores críticos):**
+```typescript
+// components/AlertError.tsx
+interface AlertErrorProps {
+  message: string;
+  onDismiss?: () => void;
+  retryAction?: () => void;
+}
+
+export function AlertError({ message, onDismiss, retryAction }: AlertErrorProps) {
+  return (
+    <View className="bg-red-100 border-l-4 border-red-500 p-4 mb-4">
+      <View className="flex-row justify-between items-start">
+        <Text className="text-red-800 flex-1">{message}</Text>
+        <Pressable onPress={onDismiss}>
+          <Text className="text-red-800 font-bold">✕</Text>
+        </Pressable>
+      </View>
+      
+      {retryAction && (
+        <Pressable onPress={retryAction} className="mt-2">
+          <Text className="text-red-700 font-semibold underline">Reintentar</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+```
+
+**2. Toast (para notificaciones rápidas):**
+```typescript
+// No requiere componente, usar Alert.alert de React Native o librería
+Alert.alert('Error', 'No se pudo guardar el territorio');
+```
+
+**3. Banner de conexión (para estado offline):**
+```typescript
+// components/NetworkStatusBanner.tsx
+export function NetworkStatusBanner() {
+  const { isOffline } = useNetworkStatus();
+  
+  if (!isOffline) return null;
+  
+  return (
+    <View className="bg-yellow-100 border-b-2 border-yellow-500 p-3">
+      <Text className="text-yellow-800">
+        📡 Sin conexión. Los cambios se sincronizarán cuando haya internet.
+      </Text>
+    </View>
+  );
+}
+```
+
+#### 📊 Mapeo de errores: Código → Mensaje amigable
+
+```typescript
+// src/utils/errorMessages.ts
+export const getErrorMessage = (error: any): string => {
+  // Firebase Auth errors
+  if (error.code === 'auth/user-not-found') {
+    return 'Este correo no está registrado. ¿Quieres crear una cuenta?';
+  }
+  if (error.code === 'auth/wrong-password') {
+    return 'Contraseña incorrecta. ¿Olvidaste tu contraseña?';
+  }
+  if (error.code === 'auth/email-already-in-use') {
+    return 'Este correo ya está registrado. Intenta con otro.';
+  }
+  if (error.code === 'auth/weak-password') {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  if (error.code === 'auth/too-many-requests') {
+    return 'Demasiados intentos fallidos. Intenta más tarde.';
+  }
+  
+  // Firestore errors
+  if (error.code === 'permission-denied') {
+    return 'No tienes permiso para realizar esta acción.';
+  }
+  if (error.code === 'not-found') {
+    return 'El elemento no existe o fue eliminado.';
+  }
+  if (error.code === 'unavailable') {
+    return 'El servicio no está disponible. Intenta más tarde.';
+  }
+  
+  // Network errors
+  if (error.message?.includes('Network')) {
+    return 'Error de conexión. Verifica tu internet.';
+  }
+  
+  // Default
+  return 'Algo salió mal. Por favor intenta de nuevo.';
+};
+
+// Uso en hooks:
+export function useTerritory() {
+  const [error, setError] = useState<string | null>(null);
+  
+  const updateTerritory = async (id: string, updates: Partial<Territory>) => {
+    try {
+      await territoryService.updateTerritory(id, updates);
+    } catch (err) {
+      setError(getErrorMessage(err));  // ← Mensaje amigable
+    }
+  };
+  
+  return { error, updateTerritory };
+}
+```
+
+#### 🎯 Estrategia de mostrar/ocultar errores
+
+```typescript
+// components/FormWithErrors.tsx
+export function LoginForm() {
+  const { values, errors, touched } = useForm({...});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  
+  return (
+    <ScrollView>
+      {/* Error general del submit */}
+      {submitError && <AlertError message={submitError} onDismiss={() => setSubmitError(null)} />}
+      
+      {/* Errores de campo (solo si fue tocado) */}
+      <CustomTextInput
+        error={touched.email ? errors.email : undefined}
+        {...}
+      />
+      
+      {/* Errores adicionales de contexto */}
+      {batchError && (
+        <View className="bg-red-50 p-3 rounded border border-red-200">
+          <Text className="text-red-800">{batchError}</Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+```
+
+---
+
+### Estados de Carga y Error en Operaciones
+
+#### ⏳ Estados básicos en cada operación
+
+Todo hook debe exponer **estados claros** para que el componente sepa qué mostrar:
+
+```typescript
+export function useTerritories() {
+  return {
+    // Carga
+    isLoading,      // Primera carga (mostrar skeleton o spinner)
+    isFetching,     // Revalidando en background (No mostrar spinner, mantener UI)
+    isSyncing,      // Sincronizando offline → Firestore
+    
+    // Errores
+    error,          // Error en fetch
+    syncError,      // Error en sync
+    validationError,// Error de validación
+    
+    // Éxito
+    successMessage, // Mensaje de confirmación
+  };
+}
+```
+
+#### 🎬 Mostrar estados apropiados en UI
+
+```typescript
+// app/(tabs)/territories.tsx
+export default function TerritoriesScreen() {
+  const { 
+    territories, 
+    isLoading,      // Primera carga
+    isFetching,     // Revalidando
+    error, 
+    successMessage 
+  } = useTerritory();
+  
+  if (isLoading) {
+    return <SkeletonLoader />;  // Mostrar mientras carga inicial
+  }
+  
+  return (
+    <ScrollView>
+      {/* Mostrar banner si falla la sincronización (pero no bloquea) */}
+      {isFetching && <Text>Actualizando territorios...</Text>}
+      
+      {/* Mostrar error si hay */}
+      {error && (
+        <AlertError 
+          message={error} 
+          retryAction={() => refreshTerritories()}
+        />
+      )}
+      
+      {/* Mostrar confirmación exitosa */}
+      {successMessage && (
+        <Toast type="success" message={successMessage} />
+      )}
+      
+      {/* Contenido principal */}
+      <TerritoryList territories={territories} />
+    </ScrollView>
+  );
+}
+```
+
+#### 🔄 Ciclo de un formulario con validación + error
+
+```typescript
+// components/AddTerritoryForm.tsx
+export function AddTerritoryForm() {
+  const { values, errors, touched, isSubmitting, handleChange, handleSubmit } = useForm({
+    initialValues: { name: '', number: 0, color: '' },
+    validationSchema: territorySchema,
+    onSubmit: async (values) => {
+      // 1. Validación ya hecha (antes de llegar aquí)
+      
+      // 2. Intenta crear
+      try {
+        await createTerritory(values);
+        
+        // 3. Éxito: mostrar confirmación
+        Alert.alert('Éxito', 'Territorio creado correctamente');
+        resetForm();
+        
+      } catch (error) {
+        // 4. Error: mapear y mostrar
+        const friendlyError = getErrorMessage(error);
+        setSubmitError(friendlyError);
+      }
+    },
+  });
+  
+  return (
+    <View>
+      {submitError && <AlertError message={submitError} />}
+      
+      <CustomTextInput
+        placeholder="Nombre"
+        value={values.name}
+        onChangeText={(text) => handleChange('name', text)}
+        error={touched.name ? errors.name : undefined}
+      />
+      
+      <CustomButton
+        onPress={handleSubmit}
+        text="Crear"
+        loading={isSubmitting}  // Desabilitar durante submit
+      />
+    </View>
+  );
+}
+```
+
+---
+
+### Validación de Roles y Permisos
+
+#### 🔐 Validación de permisos en componentes
+
+```typescript
+// components/AdminButton.tsx - No renderizar si no es admin
+interface AdminButtonProps {
+  onPress: () => void;
+  text: string;
+}
+
+export function AdminButton({ onPress, text }: AdminButtonProps) {
+  const { isAdmin } = usePermissions();
+  
+  if (!isAdmin) {
+    return null;  // No renderizar para usuarios normales
+  }
+  
+  return <CustomButton onPress={onPress} text={text} />;
+}
+```
+
+#### 📋 Validación de permisos antes de operaciones
+
+```typescript
+// src/hooks/useTerritory.ts
+const deleteTerritory = async (id: string) => {
+  // 1. Validar permiso en cliente
+  const { isAdmin } = usePermissions();
+  if (!isAdmin) {
+    throw new Error('No tienes permiso para eliminar territorios');
+  }
+  
+  // 2. Ejecutar operación (servidor valida de nuevo)
+  try {
+    await territoryService.deleteTerritory(id);
+  } catch (error) {
+    if (error.code === 'permission-denied') {
+      // Tu permiso cambió o se revocó
+      setError('Tu rol cambió. Recarga la app.');
+    }
+  }
+};
+```
+
+---
+
+### Manejo de Errores de Red
+
+#### 📡 Detección y recuperación automática
+
+```typescript
+// En hooks que hacen fetch (useTerritory, useGroup, etc):
+export function useTerritory() {
+  const { isOnline } = useNetworkStatus();
+  
+  useEffect(() => {
+    // Cuando vuelve la conexión, revalidar automáticamente
+    if (isOnline) {
+      refreshTerritories();
+    }
+  }, [isOnline]);
+  
+  const updateTerritory = async (id: string, updates) => {
+    if (!isOnline) {
+      // Offline: guardar localmente y marcar para sync
+      await localDB.saveTerritory({ ...updates, synced: false });
+      return;
+    }
+    
+    // Online: ejecutar y guardar
+    await territoryService.updateTerritory(id, updates);
+  };
+}
+```
+
+#### 🔁 Reintentos exponenciales para operaciones críticas
+
+```typescript
+// src/utils/retryWithBackoff.ts
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  initialDelayMs = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw error;  // Última tentativa: fallar
+      }
+      
+      // Esperar con backoff exponencial
+      const delay = initialDelayMs * Math.pow(2, attempt - 1);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw new Error('Failed after max attempts');
+}
+
+// Uso:
+const updateTerritory = async (id: string, updates) => {
+  return await retryWithBackoff(
+    () => territoryService.updateTerritory(id, updates),
+    3,     // Máximo 3 intentos
+    1000   // Empezar con 1 segundo, luego 2, 4, etc.
+  );
+};
+```
+
+---
+
+### ✅ Resumen: Checklist de Validación y Manejo de Errores
+
+Cuando crees un nuevo formulario o realizas una operación que requiera validación y manejo de errores, verifica este checklist:
+
+#### 📋 Validación de Formularios
+
+- [ ] **Esquema definido:** Existe un `validationSchema` en `src/utils/validationSchemas.ts`
+- [ ] **Validación cliente:** Validar en tiempo real mientras el usuario escribe (debouncing opcional)
+- [ ] **Validación servidor:** Firestore Rules + Cloud Functions validan los mismos campos
+- [ ] **Mensajes claros:** Los errores son específicos y accionables (no "Error")
+- [ ] **Errores mostrados:** Solo se muestran errores de campos que el usuario ha tocado (`touched`)
+- [ ] **Permisos validados:** Si es operación sensible, validar rol ANTES de intentar
+
+#### 🎨 Comunicación de Errores
+
+- [ ] **Componentes apropiadosustrados:** Usar `AlertError`, `Toast`, o `Banner` según contexto
+- [ ] **Mensajes traducidos:** Mapear `error.code` → `getErrorMessage()` para mensajes amigables
+- [ ] **Botón Reintentar:** Si hay conexión o errores transitoriostransitorios, ofrecer reintentar
+- [ ] **Contexto claro:** El usuario sabe POR QUÉ falló y QUÉ puede hacer
+
+#### ⏳ Estados de Carga
+
+- [ ] **Estados expuestos:** Hook expone `isLoading`, `isFetching`, `isSyncing`, etc.
+- [ ] **UI apropiada:** 
+  - `isLoading` → Mostrar esqueleto/spinner (bloquea UI)
+  - `isFetching` → Banner discreto (no bloquea)
+  - `isSyncing` → Indicador de fondo
+- [ ] **Botones deshabilitados:** Durante `isSubmitting`, deshabilitar para evitar múltiples clicks
+- [ ] **Timeout:** Operaciones largas tienen timeout configurado
+
+#### 🔐 Validación de Permisos
+
+- [ ] **Ocultamiento de UI:** Si el usuario no tiene permiso, no mostrar el botón/opción
+- [ ] **Validación doble:** Cliente valida para UX, servidor valida para seguridad
+- [ ] **Manejo de revocación:** Si un admin te quita acceso, redirigir de `/admin` a `/`
+- [ ] **Mensajes específicos:** "No tienes permiso" en lugar de error genérico
+
+#### 📡 Manejo de Errores de Red
+
+- [ ] **Detección de conexión:** Usar `useNetworkStatus()` para saber si hay internet
+- [ ] **Fallback offline:** Si falla un fetch y hay cache, mostrar cache
+- [ ] **Sincronización automática:** Cuando vuelve internet, sincronizar cambios pendientes
+- [ ] **Reintentos:** Para operaciones críticas, usar `retryWithBackoff()`
+- [ ] **Banner de estado:** Mostrar "📡 Sin conexión" cuando es offline
+
+#### 🧪 Testing recomendado
+
+```typescript
+// Casos a validar:
+✓ Formulario válido → submit exitoso
+✓ Formulario inválido → mostrar errores
+✓ Error de validación servidor → mostrar error al usuario
+✓ Error de permiso → mostrar "No autorizado"
+✓ Error de red → mostrar "Sin conexión" + opción reintentar
+✓ Cambios offline → guardar localmente + sincronizar al conectar
+✓ Usuario pierde conexión durante operación → manejar gracefully
+✓ User role changed during session → redirigir si pierde acceso
+```
+
+---
+
 ### Agregar una nueva pantalla
 1. Crear archivo en `app/(tabs)/mi-pantalla.tsx` o estructura de carpetas
 2. Expo Router la registra automáticamente
@@ -1517,7 +2158,652 @@ Cuando agregues `miColeccion`:
 
 ---
 
-## 11. Variables de entorno
+## 11. Hooks Especializados
+
+Documentación detallada de cada hook en `src/hooks/` y su propósito específico.
+
+### 11.1 `useUser()` — Autenticación y perfil actual
+
+**Propósito:** Gestionar la sesión del usuario, autenticación y datos personales.
+
+**Estado:**
+```typescript
+const {
+  userData,           // { uid, email, name, role, congregationId, ... }
+  isLoading,          // Cargando datos iniciales
+  error,              // Error si falló la autenticación
+  isAuthenticated,    // Booleano de sesión activa
+  registerUser(),     // async (email, password, name, role?) → crear cuenta
+  loginUser(),        // async (email, password) → iniciar sesión
+  logoutUser(),       // async () → cerrar sesión
+  updateUser(),       // async (updates) → editar perfil
+  resetPassword(),    // async (email) → enviar email de recuperación
+} = useUser();
+```
+
+**Características:**
+- ✅ Persistencia automática vía `getReactNativePersistence(AsyncStorage)`
+- ✅ Caché con `AsyncStorage` (sesión no se pierde al cerrar app)
+- ✅ Sincronización bidireccional: Auth + Firestore
+- ✅ Manejo robusto de errores de Firebase Auth
+- ✅ Integración con `usePermissions()` para validar rol
+
+**Uso:**
+```typescript
+// app/(tabs)/_layout.tsx - Proteger rutas
+const { isAuthenticated } = useUser();
+if (!isAuthenticated) {
+  return <Redirect href="/(auth)/login" />;
+}
+
+// app/(tabs)/profile.tsx - Mostrar perfil del usuario
+const { userData, updateUser } = useUser();
+<Text>{userData?.name}</Text>
+```
+
+**Notas:**
+- El hook detecta cambios en `auth.currentUser` automáticamente
+- Los datos de usuario (rol, perfil extendido) se sincronizaban desde Firestore
+- La persistencia de sesión es transparente (usuario se logea una sola vez)
+
+---
+
+### 11.2 `useUsers()` — Listar y administrar usuarios (Admin)
+
+**Propósito:** Gestionar la lista completa de usuarios (solo para admin+).
+
+**Estado:**
+```typescript
+const {
+  users,              // Array de User[]
+  isLoading,          // Cargando lista
+  error,              // Error al traer usuarios
+  updateUser(),       // async (uid, updates) → cambiar datos del usuario
+  deleteUser(),       // async (uid) → eliminar usuario (superadmin)
+  changeUserRole(),   // async (uid, newRole) → cambiar rol (validado)
+  mutate,             // Para revalidar manualmente
+} = useUsers();
+```
+
+**Características:**
+- ✅ Solo accesible para `isAdmin` (validado en componente)
+- ✅ Caché con `useOfflineSWR` + `AsyncStorage`
+- ✅ Cambio de rol validado (admin solo puede → admin; superadmin puede cualquier cambio)
+- ✅ Operaciones batch: cambiar múltiples usuarios paralelo
+
+**Uso:**
+```typescript
+// app/(tabs)/admin/users.tsx - Panel de administración de usuarios
+const { users, changeUserRole, isLoading } = useUsers();
+
+users.map(user => (
+  <UserRow
+    key={user.uid}
+    user={user}
+    onRoleChange={(newRole) => changeUserRole(user.uid, newRole)}
+  />
+))
+```
+
+**Validaciones de rol:**
+- ❌ `user` NO puede cambiar roles
+- ✅ `admin` puede cambiar `user` → `admin` (no a superadmin)
+- ✅ `superadmin` puede cambiar cualquier rol
+
+---
+
+### 11.3 `useTerritory()` — CRUD de territorios + sync
+
+**Propósito:** Gestionar la lectura, creación, edición y sincronización de territorios. Es el **hook más crítico** para la app.
+
+**Estado:**
+```typescript
+const {
+  territories,        // Array de Territory[]
+  isLoading,          // Cargando inicial
+  isFetching,         // Revalidando en background
+  error,              // Error en fetch
+  syncError,          // Error en sincronización
+  isSyncing,          // Sincronizando con Firestore
+  
+  // Operaciones CRUD
+  createTerritory(),  // async (coords, color?, name?, number?) → crear
+  updateTerritory(),  // async (id, updates) → editar con optimistic update
+  deleteTerritory(),  // async (id) → eliminar
+  
+  // Operaciones batch
+  markAllAsReady(),   // async () → marcar todos como listos
+  assignToGroup(),    // async (territoryId, groupId) → asignar a grupo
+  
+  // Sincronización manual
+  syncNow(),          // async () → forzar sync con Firestore
+  mutate,             // Para actualizar estado manualmente
+} = useTerritory();
+```
+
+**Características:**
+- ✅ **Soporte offline-first:** Cache en `localDB` (AsyncStorage)
+- ✅ **Sincronización única:** Se sincroniza una sola vez al iniciar (`useRef` para evitar duplicados)
+- ✅ **Optimistic updates:** UI se actualiza al instante, confirma en background
+- ✅ **Detección automática de reconexión:** Cuando vuelve internet, sincroniza automáticamente
+- ✅ **Sincronización bidireccional de relaciones:** `territories.groupId` ↔ `groups.territoryIds`
+
+**Caché:**
+```
+AsyncStorage
+  ├─ local_territories      → Array completo (sincronizado)
+  ├─ firestore:territories  → Cache SWR (TTL: 24h)
+  └─ ... otros datos
+```
+
+**Sincronización:**
+```
+1. Inicialización:
+   ├─ Lee local_territories (instantáneo)
+   ├─ Muestra en UI inmediatamente
+   └─ Sincroniza background (carga cambios remotos)
+
+2. Usuario edita:
+   ├─ Actualiza local_territories
+   ├─ Mutate SWR (UI se refresca)
+   ├─ Si online: uploadToFirestore() paralelo
+   ├─ Si offline: marca synced: false
+
+3. Vuelve internet:
+   ├─ useNetworkStatus detecta transición
+   ├─ Sincroniza cambios pendientes (synced: false)
+   ├─ Descarga cambios remotos
+   └─ Mutate SWR (UI se actualiza)
+```
+
+**Uso:**
+```typescript
+// app/(tabs)/index.tsx - Ver territorios asignados
+const { territories, isLoading } = useTerritory();
+<TerritoryList territories={territories} loading={isLoading} />
+
+// app/(tabs)/territories.tsx - Editar territorios (admin)
+const { createTerritory, updateTerritory } = useTerritory();
+await createTerritory(coordinates, color, name, number);
+await updateTerritory(territoryId, { name: 'Nuevo nombre' });
+```
+
+**Notas:**
+- El hook **NO sincroniza en cada render** (usa `useRef` para prevenir duplicados)
+- Las operaciones son **idempotentes**: ejecutarlas múltiples veces da el mismo resultado
+- La sincronización es **bidireccional**: cambios locales ↔ Firestore
+
+---
+
+### 11.4 `useGroup()` — CRUD de grupos + asignaciones de territorios
+
+**Propósito:** Gestionar grupos de visitadores y la asignación de territorios a grupos.
+
+**Estado:**
+```typescript
+const {
+  groups,             // Array de Group[]
+  isLoading,          // Cargando lista
+  isSyncing,          // Sincronizando
+  error,              // Error en fetch/sync
+  
+  // Operaciones CRUD
+  createGroup(),      // async (name, description?) → crear grupo
+  updateGroup(),      // async (id, updates) → editar grupo
+  deleteGroup(),      // async (id) → eliminar grupo
+  
+  // Asignaciones de territorios
+  assignTerritory(),  // async (groupId, territoryId) → asignar territorio a grupo
+  unassignTerritory(),// async (groupId, territoryId) → desasignar
+  
+  mutate,             // Para actualizar manualmente
+} = useGroup();
+```
+
+**Características:**
+- ✅ **Sincronización bidireccional:** `groups.territoryIds` ↔ `territories.groupId` se mantienen sincronizadas
+- ✅ **Caché offline:** `localDB` para persistencia
+- ✅ **Operaciones batch:** Asignar múltiples territorios paralelo
+- ✅ **Validación de relaciones:** Previene asignaciones duplicadas
+
+**Caché:**
+```
+AsyncStorage
+  ├─ local_groups        → Array de grupos
+  └─ firestore:groups    → Cache SWR (TTL: 24h)
+```
+
+**Sincronización de relaciones:**
+```typescript
+// Cuando asignas un territorio a un grupo:
+assignTerritory(groupId, territoryId)
+  ├─ Actualiza groups[groupId].territoryIds += territoryId
+  ├─ Actualiza territories[territoryId].groupId = groupId
+  ├─ Guarda ambas relaciones en Firestore
+  └─ Mutate ambos hooks (territories + groups)
+```
+
+**Uso:**
+```typescript
+// app/(tabs)/admin/groups.tsx - Gestionar grupos
+const { groups, createGroup, assignTerritory } = useGroup();
+
+groups.map(group => (
+  <GroupCard
+    key={group.id}
+    group={group}
+    onAssign={(territoryId) => assignTerritory(group.id, territoryId)}
+  />
+))
+```
+
+---
+
+### 11.5 `useHouses()` — CRUD de casas y suscripción en tiempo real
+
+**Propósito:** Gestionar casas dentro de un territorio, incluidas casas a evitar y visitas.
+
+**Estado:**
+```typescript
+const {
+  houses,             // Array de House[]
+  isLoading,          // Cargando
+  error,              // Error
+  
+  // Operaciones CRUD
+  addHouse(),         // async (address, reason?, coordinates?) → agregar casa
+  updateHouse(),      // async (houseId, updates) → editar casa
+  deleteHouse(),      // async (houseId) → eliminar casa
+  
+  mutate,             // Para actualizar manualmente
+} = useHouses(territoryId);
+```
+
+**Características:**
+- ✅ **Suscripción en tiempo real** (`onSnapshot`): cambios remotos se reflejan instantáneamente
+- ✅ **Caché en SWR** (no en `localDB` porque es lectura/cambios rápidos)
+- ✅ **Bajo demanda:** Se carga por territorio, no global
+- ✅ **Deduplicación:** No registra la misma casa dos veces
+
+**Caché:**
+```
+SWR en memoria
+  └─ houses_${territoryId} → Cache con TTL configurable
+     (NO persiste en AsyncStorage)
+```
+
+**Suscripción:**
+```typescript
+// En houseService:
+onSnapshot(query(...), (snapshot) => {
+  // Se ejecuta cuando cambia en Firestore
+  const houses = snapshot.docs.map(d => ({...}));
+  callback(houses);  // Actualiza UI instantáneamente
+});
+```
+
+**Uso:**
+```typescript
+// components/TerritoryDetails.tsx - Ver casas de un territorio
+const { houses, isLoading } = useHouses(territoryId);
+<HouseList houses={houses} loading={isLoading} />
+
+// Agregar casa a evitar
+const { addHouse } = useHouses(territoryId);
+await addHouse('Calle Principal 123', 'Perro agresivo', { lat, lng });
+```
+
+---
+
+### 11.6 `usePermissions()` — Validar rol y permisos
+
+**Propósito:** Determinar qué acciones puede hacer el usuario actual basado en su rol.
+
+**Estado:**
+```typescript
+const {
+  role,               // 'user' | 'admin' | 'superadmin' | null
+  isLoading,          // Cargando rol
+  isAdmin,            // role === 'admin' || role === 'superadmin'
+  isSuperAdmin,       // role === 'superadmin'
+  canEdit,            // Alias para isAdmin
+  canDelete,          // Alias para isSuperAdmin
+  canManageUsers,     // Alias para isAdmin
+} = usePermissions();
+```
+
+**Características:**
+- ✅ Re-valida rol en cada sesión (obtiene del documento user en Firestore)
+- ✅ Auto-detecta cambios de rol (si admin te lo quita, te redirige fuera de /admin)
+- ✅ Integrado con `useUser()` (lee del contexto)
+
+**Uso:**
+```typescript
+// app/(tabs)/_layout.tsx - Proteger rutas admin
+const { isAdmin } = usePermissions();
+if (pathname === '/admin' && !isAdmin) {
+  return <Redirect href="/(tabs)" />;
+}
+
+// components/TerritoryActions.tsx - Mostrar/ocultar botones
+const { isAdmin } = usePermissions();
+return (
+  <>
+    {isAdmin && <Button onPress={handleEdit} text="Editar" />}
+    {/* El botón solo aparece para admin+ */}
+  </>
+);
+```
+
+---
+
+### 11.7 `useNetworkStatus()` — Detectar conexión a internet
+
+**Propósito:** Monitorear el estado de la conexión de red y detectar transiciones (online ↔ offline).
+
+**Estado:**
+```typescript
+const {
+  isOnline,           // boolean: true si hay conexión
+  isOffline,          // boolean: true si NO hay conexión
+  isConnecting,       // boolean: estado intermedio
+  status,             // 'online' | 'offline' | 'unknown'
+} = useNetworkStatus();
+```
+
+**Características:**
+- ✅ Usa `@react-native-community/netinfo` para detección confiable
+- ✅ Se dispara automaticamente en transiciones (online → offline, offline → online)
+- ✅ Integrado con `useTerritory()` para sincronización automática
+
+**Uso:**
+```typescript
+// components/NetworkStatusBanner.tsx
+const { isOffline } = useNetworkStatus();
+return (
+  <>{isOffline && <Banner text="Sin conexión a internet" />}</>
+);
+
+// src/hooks/useTerritory.ts - Trigger sync cuando vuelve conexión
+const { isOnline } = useNetworkStatus();
+useEffect(() => {
+  if (isOnline) {
+    syncWithFirestore();
+  }
+}, [isOnline]);
+```
+
+---
+
+### 11.8 `useOfflineSWR()` — Wrapper de SWR con caché offline
+
+**Propósito:** Hook genérico para datos con soporte offline, caché inteligente y sincronización automática.
+
+**Estado:**
+```typescript
+const {
+  data,               // T | undefined
+  isLoading,          // Primer fetch en progreso
+  isFetching,         // Revalidando en background
+  error,              // Error en fetch
+  
+  mutate,             // Actualizar estado manualmente
+  refresh,            // Forzar revalidación
+} = useOfflineSWR<T>(
+  key: string,                              // Clave única (ej: "firestore:territories")
+  fetcher: async () => T,                   // Función que trae datos
+  {
+    revalidateOnFocus: boolean,             // Revalidar al enfocar app (def: true)
+    revalidateOnReconnect: boolean,         // Revalidar cuando vuelve internet (def: true)
+    dedupingInterval: number,               // ms para deduplicar requests iguales (def: 1000)
+    ttl: number,                            // Tiempo de vida del cache (def: 24h)
+    errorRetryCount: number,                // Reintentos en error (def: 3)
+  }
+);
+```
+
+**Características:**
+- ✅ Cache offline en `AsyncStorage` con timestamp
+- ✅ Deduplicación automática (no ejecuta 2x el fetcher simultáneamente)
+- ✅ Revalidación inteligente (en background sin bloquear UI)
+- ✅ Fallback a cache si fetcher falla (modo offline)
+- ✅ Expiración de cache (TTL)
+
+**Caché:**
+```
+AsyncStorage[key] = {
+  data: T,
+  timestamp: number,   // Cuándo se guardó
+  ttl: number,        // Tiempo de vida (ms)
+}
+```
+
+**Lógica:**
+```
+1. Fetch solicitado
+   ├─ Si hay cache válido (dentro de TTL):
+   │  ├─ Devuelve cache al instante (UI rápida)
+   │  └─ Revalida en background (actualizar si hay cambios)
+   │
+   └─ Si NO hay cache o expiró:
+      ├─ Intenta fetcher()
+      ├─ Si éxito: guarda en cache
+      └─ Si falla: devuelve cache antiguo (offline)
+
+2. Internet vuelve
+   ├─ useNetworkStatus detecta cambio
+   └─ Revalida (intenta fetch nuevamente)
+```
+
+**Uso:**
+```typescript
+// En src/hooks/useTerritory.ts
+const { data: territories } = useOfflineSWR<Territory[]>(
+  'firestore:territories',
+  async () => {
+    return await territoriesFetcher();
+  },
+  {
+    revalidateOnReconnect: true,
+    ttl: 1000 * 60 * 60 * 24,  // 24 horas
+  }
+);
+```
+
+---
+
+### 11.9 `useCongregation()` — Listar congregaciones
+
+**Propósito:** Obtener la lista de congregaciones disponibles en la app (solo lectura).
+
+**Estado:**
+```typescript
+const {
+  congregations,      // Array de Congregation[]
+  isLoading,          // Cargando lista
+  error,              // Error en fetch
+} = useCongregation();
+```
+
+**Características:**
+- ✅ Lectura simple (no hay CRUD)
+- ✅ Caché en SWR (en memoria, no persistente)
+- ✅ Datos estáticos (rara vez cambian)
+
+**Uso:**
+```typescript
+// app/(auth)/register.tsx - Seleccionar congregación
+const { congregations } = useCongregation();
+<Picker items={congregations} />
+```
+
+---
+
+### 11.10 `useForm()` — Manejo de formularios
+
+**Propósito:** Hook genérico para manejar estado de formularios, validaciones y submits.
+
+**Estado:**
+```typescript
+const {
+  values,             // { [fieldName]: value }
+  errors,             // { [fieldName]: errorMessage }
+  touched,            // { [fieldName]: boolean } - si fue tocado
+  isSubmitting,       // Enviando formulario
+  
+  // Handlers
+  handleChange(),     // (fieldName, value) → actualizar valor
+  handleBlur(),       // (fieldName) → marcar como tocado
+  handleSubmit(),     // (async callback) → ejecutar con validaciones
+  setValues(),        // Actualizar valores en batch
+  setErrors(),        // Actualizar errores manualmente
+  resetForm(),        // Limpiar formulario
+} = useForm({
+  initialValues: { email: '', password: '' },
+  validationSchema: yupSchema,  // O esquema custom
+  onSubmit: async (values) => { /* ... */ },
+});
+```
+
+**Características:**
+- ✅ Validaciones integradas (yup, zod, custom)
+- ✅ Manejo automático de errores
+- ✅ Debouncing opcional para validaciones
+- ✅ Integración con componentes de input
+
+**Uso:**
+```typescript
+// app/(auth)/login.tsx
+const { values, errors, handleChange, handleSubmit } = useForm({
+  initialValues: { email: '', password: '' },
+  onSubmit: async (values) => {
+    await loginUser(values.email, values.password);
+  },
+});
+
+<CustomTextInput
+  value={values.email}
+  onChangeText={(text) => handleChange('email', text)}
+  error={errors.email}
+/>
+<CustomButton onPress={handleSubmit} text="Iniciar sesión" />
+```
+
+---
+
+### 11.11 `useFilterSort()` — Gestionar filtros y ordenamiento
+
+**Propósito:** Mantener estado de filtros y opciones de ordenamiento para listas.
+
+**Estado:**
+```typescript
+const {
+  filters,            // { [filterName]: value }
+  sortBy,             // 'name' | 'date' | 'status' | ...
+  sortOrder,          // 'asc' | 'desc'
+  
+  // Handlers
+  setFilter(),        // (name, value) → actualizar filtro
+  setSortBy(),        // (field) → cambiar ordenamiento
+  toggleSortOrder(),  // Cambiar asc ↔ desc
+  clearFilters(),     // Resetear todos los filtros
+} = useFilterSort();
+```
+
+**Características:**
+- ✅ Persistencia opcional en AsyncStorage
+- ✅ Validación de valores válidos
+- ✅ Integración con `FilterBottomSheet` componentes
+
+**Uso:**
+```typescript
+// app/(tabs)/territories.tsx - Filtrar territorios
+const { filters, setFilter, sortBy } = useFilterSort();
+
+const filtered = territories
+  .filter(t => !filters.status || t.status === filters.status)
+  .sort((a, b) => sortBy === 'name' ? a.name.localeCompare(b.name) : 0);
+
+<FilterButtons
+  onFilterChange={(name, value) => setFilter(name, value)}
+/>
+```
+
+---
+
+### 11.12 `useLocation()` — Obtener ubicación GPS del usuario
+
+**Propósito:** Acceder a la ubicación actual del dispositivo (GPS).
+
+**Estado:**
+```typescript
+const {
+  location,           // { latitude: number, longitude: number }
+  isLoading,          // Obteniendo ubicación
+  error,              // Error de permisos o GPS
+  hasPermission,      // ¿Permiso de ubicación otorgado?
+  requestPermission(),// Pedir permisos al usuario
+} = useLocation();
+```
+
+**Características:**
+- ✅ Manejo automático de permisos (iOS/Android)
+- ✅ Ubicación en tiempo real (opcional suscripción continua)
+- ✅ Fallback a ubicación cacheda si falla
+
+**Uso:**
+```typescript
+// components/Map/TerritoryPolygons.tsx - Mostrar usuario en mapa
+const { location } = useLocation();
+<MapView>
+  {location && <Marker coordinate={location} />}
+  {/* Territorios como polígonos */}
+</MapView>
+```
+
+---
+
+### 11.13 `useTerritoriesAdmin()` — Gestión avanzada de territorios (Admin)
+
+**Propósito:** Hook especializado para operaciones administrativas de territorios (batch, importación, etc.).
+
+**Estado:**
+```typescript
+const {
+  territories,        // Array de Territory[]
+  isLoading,          // Cargando
+  isBatchProcessing,  // Procesando operación batch
+  batchError,         // Error en operación batch
+  
+  // Operaciones batch
+  markAllAsReady(),   // Marcar todos como listos
+  reassignAll(),      // Reasignar todos a otro grupo
+  exportToCSV(),      // Exportar territorios a CSV
+  importFromCSV(),    // Importar territorios desde CSV
+} = useTerritoriesAdmin();
+```
+
+**Características:**
+- ✅ Operaciones paralelo para performance
+- ✅ Manejo de errores granular por item
+- ✅ Progreso de batch (opcional)
+- ✅ Rollback en caso de falla crítica
+
+**Uso:**
+```typescript
+// app/(tabs)/admin/ - Panel avanzado
+const { markAllAsReady, isBatchProcessing } = useTerritoriesAdmin();
+
+<Button
+  onPress={markAllAsReady}
+  text="Marcar todos como listos"
+  loading={isBatchProcessing}
+/>
+```
+
+---
+
+## 12. Variables de entorno
 
 Las variables sensibles (API keys de Firebase, etc.) se manejan con `app.config.ts` y el sistema de `extra` de Expo, **nunca hardcodeadas en el código fuente**.
 
