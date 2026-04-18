@@ -320,6 +320,75 @@ try {
    └─ Secciones solo para admin, validadas en _layout y componentes
 ```
 
+### 5.1.6 Estructura de código: Autenticación en capas
+
+**Archivos clave involucrados:**
+
+```
+✅ src/config/firebase.ts
+   └─ Inicializa auth con persistencia en AsyncStorage
+   
+✅ src/services/authService.ts
+   ├─ getUserRole(uid)  → Obtiene rol desde Firestore
+   ├─ getCurrentUser()   → Retorna user de Firebase Auth
+   ├─ logout()           → Limpia sesión y estado global
+   └─ Helpers: isAdmin(), isSuperAdmin()
+
+✅ src/services/userService.ts
+   └─ changeUserRole()   → Cambiar rol (con validaciones)
+
+✅ src/hooks/useUser.ts
+   ├─ userData          → Estado local del usuario (con caché offline)
+   ├─ registerUser()    → Crear cuenta + documento Firestore
+   ├─ loginUser()       → Iniciar sesión (carga rol + datos)
+   ├─ updateUser()      → Editar perfil (optimistic update)
+   └─ resetPassword()   → Recuperar contraseña
+
+✅ src/hooks/useUsers.ts
+   ├─ users             → Array de todos los usuarios (admin view)
+   ├─ updateUser()      → Cambiar usuario (admin)
+   └─ deleteUser()      → Eliminar usuario en Firestore (no Auth)
+
+✅ src/hooks/usePermissions.ts
+   ├─ isAdmin           → Booleano de permisos
+   └─ isLoading         → Estado de carga
+
+✅ app/(auth)/*.tsx
+   ├─ login.tsx         → Pantalla de inicio de sesión
+   ├─ register.tsx      → Pantalla de registro (recibe rol si es admin)
+   ├─ forgot-password.tsx → Recuperación de contraseña
+   └─ splash.tsx        → Splash inicial (opcional)
+
+✅ app/(tabs)/_layout.tsx
+   └─ Protección de ruta: chequea auth.currentUser + usePermissions()
+
+✅ app/(tabs)/admin/* 
+   └─ Secciones solo para admin, validadas en _layout y componentes
+```
+
+### 5.1.7 Flujo detallado: Registro con rol
+
+```typescript
+// Paso 1: Usuario completa el formulario
+registerUser(email, password, displayName, role = 'user')
+
+// Paso 2: Crear cuenta en Firebase Auth
+createUserWithEmailAndPassword(auth, email, password)
+│
+└─ Paso 3: Crear documento en Firestore/users/{uid}
+   {
+     uid, email, displayName, role,
+     createdAt: new Date()
+   }
+   │
+   └─ Paso 4: Cache en AsyncStorage para offline
+      └─ Paso 5: mutate() para actualizar UI
+
+// Resultado: Usuario existe en Auth + Firestore con rol asignado
+```
+
+**Nota:** Si es admin creando otro usuario, puede asignar rol desde el inicio. Si es auto-registro, rol = 'user'.
+
 ---
 
 ## 5.2 Protección de operaciones por rol
@@ -366,32 +435,650 @@ match /territories/{doc=**} {
 
 ---
 
-## 6. Cómo extender el proyecto
+## 6. Estructura de datos en Firestore
 
-### Agregar una nueva pantalla
-1. Crear el archivo en `app/(tabs)/mi-pantalla.tsx` (o dentro del grupo correspondiente)
-2. Expo Router la registra automáticamente como ruta
-3. Si necesita datos, crear un hook en `src/hooks/useMiPantalla.ts`
-4. Si el hook necesita Firebase, agregar la función en el service correspondiente de `src/services/`
+### 6.1 Diagrama de colecciones y relaciones
 
-### Agregar un nuevo componente
-1. Crear `components/MiCarpeta/MiComponente.tsx`
-2. Definir sus props con una `interface` en la parte superior del archivo
-3. El componente no importa servicios ni Firebase directamente
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     FIRESTORE DATABASE                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐      ┌──────────────┐   ┌──────────────┐  │
+│  │   users      │      │ territories  │   │   groups     │  │
+│  │ (Auth)       │      │              │   │              │  │
+│  ├──────────────┤      ├──────────────┤   ├──────────────┤  │
+│  │ uid (PK)     │◄─────┤ id (PK)      │   │ id (PK)      │  │
+│  │ email        │      │ name         │──►│ name         │  │
+│  │ role         │      │ number       │   │ description  │  │
+│  │ name         │      │ color        │   │ territoryIds │  │
+│  │ createdAt    │      │ coordinates[]│   │ updatedAt    │  │
+│  │ congregation │      │ createdBy    │   │              │  │
+│  │   Id         │      │ groupId      │   └──────────────┘  │
+│  └──────────────┘      │ createdAt    │         ▲            │
+│         ▲               │ lastModified │         │ (1:many)   │
+│         │               │ synced       │         │            │
+│         │ (createdBy)   │ status       │         │            │
+│         └───────────────┤              │─────────┘            │
+│                         └──────────────┘                       │
+│                              ▲                                 │
+│                              │ (1:many)                        │
+│                         ┌────▼────────────┐                   │
+│                         │  avoidHouses    │                   │
+│                         │  (colección)    │                   │
+│                         ├─────────────────┤                   │
+│                         │ id (PK)         │                   │
+│                         │ territoryId (FK)│                   │
+│                         │ address         │                   │
+│                         │ reason          │                   │
+│                         │ coordinates     │                   │
+│                         │ createdBy       │                   │
+│                         │ createdAt       │                   │
+│                         │ updatedAt       │                   │
+│                         └─────────────────┘                   │
+│                                                               │
+│  ┌──────────────────┐                                         │
+│  │  congregations   │                                         │
+│  │                  │                                         │
+│  ├──────────────────┤                                         │
+│  │ id (PK)          │                                         │
+│  │ name             │                                         │
+│  │ country          │                                         │
+│  │ region           │                                         │
+│  └──────────────────┘                                         │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Agregar un nuevo tipo de dato
-1. Crear o editar el archivo correspondiente en `src/types/`
-2. Exportar el tipo e importarlo donde se necesite
+### 6.2 Definición de colecciones
 
-### Agregar una nueva colección en Firestore
-1. Definir el tipo en `src/types/`
-2. Crear `src/services/miColeccionService.ts` con las operaciones CRUD
-3. Crear `src/hooks/useMiColeccion.ts` que consuma el service
-4. Si el dato es global, agregar al context correspondiente en `src/context/`
+#### 📋 `users` — Información de usuarios y autenticación
+**Storage:** Firebase Auth + Firestore (sync)
+**Propósito:** Almacenar perfil, rol y permisos de usuarios
+
+| Campo | Tipo | Requerido | Descripción | Índice |
+|---|---|---|---|---|
+| `uid` | `string` | ✅ | ID de Firebase Auth (PK) | Primary |
+| `email` | `string` | ✅ | Email único del usuario | Unique |
+| `role` | `'user' \| 'admin' \| 'superadmin'` | ✅ | Nivel de acceso | ❌ |
+| `name` | `string` | ✅ | Nombre completo | ❌ |
+| `congregationId` | `string` | ❌ | FK a congregations | ✅ |
+| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
+| `updatedAt` | `Date` | ❌ | Última actualización | ❌ |
+| `isActive` | `boolean` | ❌ | Si el usuario está activo (def: true) | ❌ |
+| `lastLogin` | `Date` | ❌ | Último acceso | ❌ |
+
+**Ejemplo:**
+```json
+{
+  "uid": "gN4xQ9kL2z1mP...",
+  "email": "maria@congregation.org",
+  "role": "admin",
+  "name": "María González",
+  "congregationId": "cong_001",
+  "createdAt": 1713427200,
+  "isActive": true,
+  "lastLogin": 1713513600
+}
+```
+
+**Operaciones (Service):** `userService.ts`
+- `changeUserRole(targetUserId, newRole)` — Cambiar rol (validado por rol actual)
 
 ---
 
-## 7. Decisiones de arquitectura
+#### 🗺️ `territories` — Zonas geográficas a visitar
+**Storage:** Firestore (con sincronización offline local)
+**Propósito:** Almacenar polígonos geográficos y metadata de territorios
+
+| Campo | Tipo | Requerido | Descripción | Índice |
+|---|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
+| `name` | `string` | ✅ | Nombre del territorio | ✅ |
+| `number` | `number` | ✅ | Número de identificación | ✅ |
+| `coordinates` | `Array<{lat: number, lng: number}>` | ✅ | Puntos del polígono (mín 3) | Geo |
+| `color` | `string` | ✅ | Color RGBA para mapa (def: "rgba(255,0,0,0.8)") | ❌ |
+| `groupId` | `string` | ❌ | FK a groups (asignación) | ✅ |
+| `status` | `'available' \| 'assigned' \| 'completed'` | ❌ | Estado del territorio | ✅ |
+| `createdBy` | `string` | ✅ | FK a users (uid del creador) | ❌ |
+| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
+| `lastModified` | `number` | ❌ | Timestamp de última modificación | ❌ |
+| `synced` | `boolean` | ❌ | Si está sincronizado con Firestore | ❌ |
+
+**Ejemplo:**
+```json
+{
+  "id": "terr_001",
+  "name": "Centro Histórico",
+  "number": 42,
+  "coordinates": [
+    {"lat": 40.7128, "lng": -74.0060},
+    {"lat": 40.7138, "lng": -74.0050},
+    {"lat": 40.7118, "lng": -74.0070}
+  ],
+  "color": "rgba(0, 150, 255, 0.8)",
+  "groupId": "group_001",
+  "status": "assigned",
+  "createdBy": "gN4xQ9kL2z1mP...",
+  "createdAt": 1713427200,
+  "synced": true
+}
+```
+
+**Operaciones (Service):** `territoryService.ts`
+- `saveTerritory(coordinates, userId)` — Crear territorio
+- `updateTerritory(id, updates)` — Actualizar
+- `deleteTerritory(id)` — Eliminar
+- `syncAll()` — Sincronizar local ↔ Firestore
+- `getLocalTerritories()` — Leer caché local
+
+---
+
+#### 👥 `groups` — Grupos de visitadores
+**Storage:** Firestore (con caché local)
+**Propósito:** Agrupar usuarios y asignar territorios a grupos
+
+| Campo | Tipo | Requerido | Descripción | Índice |
+|---|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
+| `name` | `string` | ✅ | Nombre del grupo | ✅ |
+| `description` | `string` | ❌ | Descripción (propósito o zona) | ❌ |
+| `territoryIds` | `Array<string>` | ❌ | FK array a territories | ❌ |
+| `memberIds` | `Array<string>` | ❌ | FK array a users (uids) | ❌ |
+| `createdBy` | `string` | ✅ | FK a users (uid del creador) | ❌ |
+| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
+| `updatedAt` | `Date` | ❌ | Última actualización | ❌ |
+
+**Ejemplo:**
+```json
+{
+  "id": "group_001",
+  "name": "Grupo Centro",
+  "description": "Responsables del territorio centro histórico",
+  "territoryIds": ["terr_001", "terr_002", "terr_003"],
+  "memberIds": ["uid_maria", "uid_juan"],
+  "createdBy": "gN4xQ9kL2z1mP...",
+  "createdAt": 1713427200,
+  "updatedAt": 1713513600
+}
+```
+
+**Operaciones (Service):** `groupService.ts`
+- `getRemoteGroups()` / `getLocalGroups()` — Leer grupos
+- `saveGroup(group)` — Crear grupo
+- `updateGroup(id, updates)` — Actualizar
+- `deleteGroup(id)` — Eliminar
+- `assignTerritory(groupId, territoryId)` — Asignar territorio a grupo
+- `unassignTerritory(groupId, territoryId)` — Desasignar territorio
+- `syncAll()` — Sincronizar
+
+---
+
+#### 🏠 `avoidHouses` — Casas a evitar (motivos especiales)
+**Storage:** Firestore
+**Propósito:** Registrar casas con restricciones (mascotas, peligrosas, rechazos, etc.)
+
+| Campo | Tipo | Requerido | Descripción | Índice |
+|---|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
+| `territoryId` | `string` | ✅ | FK a territories | ✅ |
+| `address` | `string` | ✅ | Dirección de la casa | ✅ |
+| `reason` | `string` | ✅ | Motivo de restricción (ej: "Perro agresivo") | ❌ |
+| `coordinates` | `{latitude: number, longitude: number}` | ✅ | Ubicación GPS | Geo |
+| `createdBy` | `string` | ✅ | FK a users (uid quien la registró) | ❌ |
+| `createdAt` | `Date` | ✅ | Fecha de registro | ✅ |
+| `updatedAt` | `Date` | ❌ | Última modificación | ❌ |
+
+**Ejemplo:**
+```json
+{
+  "id": "house_001",
+  "territoryId": "terr_001",
+  "address": "Calle Principal 123, Apartamento 4B",
+  "reason": "Perro grande y agresivo",
+  "coordinates": {"latitude": 40.7128, "longitude": -74.0060},
+  "createdBy": "uid_maria",
+  "createdAt": 1713427200,
+  "updatedAt": 1713513600
+}
+```
+
+**Operaciones (Service):** `houseService.ts`
+- `getHousesByTerritory(territoryId)` — Leer casas de un territorio
+- `addHouse(territoryId, address, reason, userId, coordinates)` — Registrar casa
+- `updateHouse(houseId, updates)` — Actualizar info
+- `deleteHouse(houseId)` — Eliminar
+- `subscribeToHousesByTerritory(territoryId, callback)` — Suscribirse a cambios en tiempo real
+
+---
+
+#### ⛪ `congregations` — Organizaciones (iglesias, grupos, etc.)
+**Storage:** Firestore
+**Propósito:** Múltiples organizaciones independientes usando la app
+
+| Campo | Tipo | Requerido | Descripción | Índice |
+|---|---|---|---|---|
+| `id` | `string` | ✅ | Document ID autogenerado (PK) | Primary |
+| `name` | `string` | ✅ | Nombre de la congregación | ✅ |
+| `country` | `string` | ❌ | País | ❌ |
+| `region` | `string` | ❌ | Región / Estado | ❌ |
+| `createdAt` | `Date` | ✅ | Timestamp de creación | ❌ |
+
+**Ejemplo:**
+```json
+{
+  "id": "cong_001",
+  "name": "Congregación Centro",
+  "country": "España",
+  "region": "Comunidad de Madrid",
+  "createdAt": 1713427200
+}
+```
+
+**Operaciones (Service):** `congregationService.ts`
+- `getAll()` — Listar todas las congregaciones
+- `getById(id)` — Obtener una por ID
+- `create(data)` — Crear nueva
+- `update(id, data)` — Actualizar
+
+---
+
+### 6.3 Relaciones entre colecciones
+
+| Relación | De | A | Tipo | Campo | Nota |
+|---|---|---|---|---|---|
+| Usuario → Territorio | `users` | `territories` | 1:many | `territories.createdBy` | Un usuario crea múltiples territorios |
+| Territorio → Grupo | `territories` | `groups` | many:many | `territories.groupId` / `groups.territoryIds` | Un territorio puede estar en un grupo; un grupo puede tener múltiples territorios |
+| Grupo → Usuario | `groups` | `users` | many:many | `groups.memberIds` | Un grupo tiene múltiples usuarios; un usuario puede estar en múltiples grupos |
+| Casa → Territorio | `avoidHouses` | `territories` | many:1 | `avoidHouses.territoryId` | Múltiples casas por territorio |
+| Casa → Usuario | `avoidHouses` | `users` | many:1 | `avoidHouses.createdBy` | Quién registró la restricción |
+| Usuario → Congregación | `users` | `congregations` | many:1 | `users.congregationId` | Múltiples usuarios por congregación |
+
+---
+
+### 6.4 Índices recomendados para Firestore
+
+**Índices simples (Auto-creados):**
+```
+✅ users:        email, role, congregationId
+✅ territories:  name, number, status, groupId
+✅ groups:       name
+✅ avoidHouses:  territoryId, createdAt, coordinates (GEO)
+✅ congregations: name
+```
+
+**Índices compuestos (Crear manualmente si hay queries complejas):**
+```
+territories:   (createdBy, status)
+avoidHouses:   (territoryId, createdAt)  ← si quieres ordenar casas por territorio y fecha
+groups:        (createdBy, createdAt)    ← si quieres historiales por creador
+```
+
+> **Nota:** Firestore sugiere automáticamente índices cuando consultas las requieren. Monitorear Firestore Console → Indexes.
+
+---
+
+### 6.5 Relación Service → Colección
+
+| Colección | Service Principal | Fetcher | Caché Local |
+|---|---|---|---|
+| `users` | `userService.ts` | — | ❌ AsyncStorage (solo sesión) |
+| `territories` | `territoryService.ts` | `territoriesFetcher` | ✅ `localDB` (sincronización) |
+| `groups` | `groupService.ts` | — | ✅ `localDB` (sincronización) |
+| `avoidHouses` | `houseService.ts` | `housesFetcher` | ❌ SWR en memoria |
+| `congregations` | `congregationService.ts` | — | ❌ SWR en memoria |
+
+---
+
+### 6.6 Patrones de sincronización y hooks customizados
+
+#### 🔄 El patrón `useOfflineSWR` — Cache offline + sincronización
+
+**Propósito:** Hook genérico que combina SWR (stale-while-revalidate) con persistencia offline y sincronización automática.
+
+**Características:**
+```typescript
+const { data, isLoading, error, mutate } = useOfflineSWR<T>(
+  key: string,                          // Clave única (ej: "firestore:territories")
+  fetcher: async () => T,               // Función que obtiene datos de Firebase
+  {
+    revalidateOnFocus: boolean,         // ¿Revalidar al enfocar la app?
+    revalidateOnReconnect: boolean,     // ¿Revalidar cuando vuelve conexión?
+    dedupingInterval: number,           // ms para deduplicar requests idénticas
+    ttl: number,                        // Time-to-live del cache (ms)
+    errorRetryCount: number             // Reintentos en caso de error
+  }
+);
+```
+
+**Beneficios:**
+- ✅ Datos en caché mientras se revalida en background
+- ✅ Funciona offline: muestra caché aunque no haya internet
+- ✅ Auto-sincroniza cuando reconecta
+- ✅ Deduplicación automática de requests duplicados
+
+**Ejemplo de uso:**
+```typescript
+// En useTerritory.ts
+const { data: territories = [], mutate } = useOfflineSWR<Territory[]>(
+  TERRITORIES_KEY,                      // "firestore:territories"
+  territoriesFetcher,                   // Función async que trae datos
+  {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    ttl: 1000 * 60 * 60 * 24,          // 24 horas de cache
+  }
+);
+```
+
+---
+
+#### 🔐 Sincronización inicial única con `useRef`
+
+**Problema:** Sin control, `useEffect` puede ejecutar sincronización múltiples veces en development.
+
+**Solución:** Flag en ref para garantizar una sola sincronización:
+
+```typescript
+// En useTerritory.ts
+let hasInitializedSync = false;  // Variable global
+const isSyncingRef = useRef(false);
+
+useEffect(() => {
+  if (hasInitializedSync || isSyncingRef.current) return;
+  isSyncingRef.current = true;
+
+  (async () => {
+    // 1️⃣ Cargar desde caché local primero (instantáneo)
+    const local = await territoryService.getLocalTerritories();
+    mutateTerritories(local, false);
+
+    // 2️⃣ Sincronizar en background con Firestore
+    try {
+      const synced = await territoryService.syncAll();
+      mutateTerritories(synced, false);
+      hasInitializedSync = true;
+    } catch (error) {
+      console.warn('Sincronización fallida (offline?):', error);
+    }
+  })();
+}, []);
+```
+
+**Resultado:** UX rápido (muestra datos locales instantáneamente) + datos frescos en background.
+
+---
+
+#### 🎯 Operaciones batch
+
+**Cuando cambiar múltiples documentos a la vez:**
+
+```typescript
+// En useTerritory.ts
+const markAllReady = async () => {
+  setIsBatchLoading(true);
+  try {
+    // ⚡ Ejecuta múltiples updateTerritory en paralelo
+    await territoryService.markAllAsReady(territories);
+    await refreshTerritories();
+  } catch (error) {
+    setBatchError('No se pudieron marcar como listos');
+  } finally {
+    setIsBatchLoading(false);
+  }
+};
+
+// En territoryService.ts
+async updateMultipleTerritories(updates: Partial<Territory>[]) {
+  const promises = updates.map((u) => this.updateTerritory(u.id!, u));
+  return Promise.all(promises);  // Paralelo, no secuencial
+}
+```
+
+---
+
+#### 📝 Optimistic updates (actualizar UI antes de confirmar)
+
+**Patrón:** Actualizar estado local inmediatamente, revertir si falla:
+
+```typescript
+// En useTerritory.ts
+const updateTerritory = useCallback(
+  async (id: string, updates: Partial<Territory>) => {
+    // 1️⃣ Actualización optimista (instantáneo para UI)
+    await mutateTerritories(
+      async (current) => {
+        const newData = current.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        );
+        // 2️⃣ Confirmar en Firestore en background
+        await territoryService.updateTerritory(id, updates);
+        return newData;
+      },
+      { revalidate: false }  // No revalidar, usamos la data que pasamos
+    );
+  },
+  [mutateTerritories]
+);
+```
+
+**Resultado:** El usuario ve el cambio al instante. Si falla, SWR revalida automáticamente.
+
+---
+
+#### 🔗 Relaciones bidireccionales: Mantener sincronización
+
+**Problema:** `territories.groupId` y `groups.territoryIds` deben estar sincronizadas.
+
+**Solución:** Actualizar AMBOS lados en cada operación:
+
+```typescript
+// En useGroup.ts
+const assignTerritory = useCallback(
+  async (groupId: string, territoryId: string) => {
+    // 1️⃣ Actualizar el grupo
+    await groupService.assignTerritory(groupId, territoryId);
+    
+    // 2️⃣ Actualizar el territorio (relación inversa)
+    await updateTerritory(territoryId, { groupId });
+    
+    // 3️⃣ Actualizar estado local
+    const updated = groups.map(g =>
+      g.id === groupId && !g.territoryIds.includes(territoryId)
+        ? { ...g, territoryIds: [...g.territoryIds, territoryId] }
+        : g
+    );
+    mutate(updated, false);
+  },
+  [groups, mutate, updateTerritory]
+);
+```
+
+**Patrón aplicable:** Siempre que haya FK en ambos lados, actualizar ambas colecciones.
+
+---
+
+#### 📡 Suscripciones en tiempo real (Real-time listeners)
+
+**Cuándo usar:** Datos que cambian frecuentemente y necesitan actualización instantáneainstantánea sin polling (ej: casas, cambios en grupo, etc.)
+
+```typescript
+// En houseService.ts
+subscribeToHousesByTerritory(territoryId: string, callback) {
+  const q = query(
+    collection(db, 'avoidHouses'),
+    where('territoryId', '==', territoryId)
+  );
+
+  // Escuchar cambios en Firestore en tiempo real
+  return onSnapshot(q, (snapshot) => {
+    const houses = snapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+
+    // Actualizar estado local + caché de SWR
+    callback(houses);
+    mutate(getHousesKey(territoryId), houses, false);
+  });
+}
+
+// En useHouses.ts
+useEffect(() => {
+  if (!territoryId) return;
+
+  // Suscribirse y escuchar cambios
+  const unsubscribe = houseService.subscribeToHousesByTerritory(
+    territoryId,
+    (houses) => console.log('Casas actualizadas:', houses)
+  );
+
+  // Limpiar al desmontar
+  return () => unsubscribe();
+}, [territoryId]);
+```
+
+**Ventaja:** Datos siempre frescos sin polling.  
+**Costo:** Requiere conexión; se desuscribe automáticamente si hay error.
+
+**Cuándo NO usar:** Para operaciones CRUD simples (use optimistic updates). Para datos que se actualizan raramente (use SWR normal).
+
+---
+
+#### 🏗️ Mapa de hooks → Responsabilidades
+
+| Hook | Propósito | Caché | Sincronización |
+|---|---|---|---|
+| `useUser()` | Auth + perfil actual | ✅ AsyncStorage | Sesión |
+| `useUsers()` | Listar todos los usuarios (admin) | ✅ AsyncStorage | Sincronización inicial |
+| `useGroup()` | CRUD grupos + asignaciones | ✅ localDB | Sincronización bidireccional |
+| `useTerritory()` | CRUD territorios + operaciones batch | ✅ localDB | Sincronización inicial única |
+| `useHouses()` | CRUD casas + suscripción RT | ❌ SWR en memoria | Suscripción en tiempo real |
+| `useCongregation()` | Listar congregaciones | ❌ En memoria | Recarga manual |
+
+**Regla de oro:** Si el dato es crítico y se usa offline → `localDB + sincronización`. Si es solo para lectura → `SWR en memoria`.
+
+---
+
+#### ⚠️ Manejo de errores y estados de carga
+
+**Estados comunes en hooks:**
+```typescript
+// Estructura recomendada para todo hook
+const {
+  // Datos
+  data,
+  
+  // Estados de carga
+  isLoading,
+  isFetching,      // Revalidando en background
+  
+  // Errores
+  error,
+  batchError,      // Error en operaciones batch
+  
+  // Funciones
+  mutate,          // Para actualizar manualmente
+  refresh,         // Para revalidar
+} = useHook();
+```
+
+**Ejemplo de manejo robusto:**
+```typescript
+// En useTerritory.ts
+const markAllReady = async () => {
+  setIsBatchLoading(true);        // Mostrar spinner
+  setBatchError(null);             // Limpiar error previo
+
+  try {
+    await territoryService.markAllAsReady(territories);
+    await refreshTerritories();
+    // ✅ Éxito: mostrar toast/banner
+  } catch (error) {
+    setBatchError('No se pudieron marcar como listos');
+    // ❌ Error: mostrar alerta
+  } finally {
+    setIsBatchLoading(false);      // Esconder spinner
+  }
+};
+
+// En componente
+{isBatchLoading && <Spinner />}
+{batchError && <AlertError message={batchError} />}
+```
+
+**Mejores prácticas:**
+- ✅ Mostrar spinner mientras `isLoading` o `isFetching`
+- ✅ Deshabilitar botones durante operaciones (`isLoading`, `isBatchLoading`)
+- ✅ Mostrar errores claros al usuario
+- ✅ Permitir reintentos cuando hay error
+- ✅ Usar `try/catch` con `finally` para garantizar limpiar estados
+
+---
+
+## 7. Cómo extender el proyecto
+
+### Agregar una nueva colección en Firestore
+1. **Definir tipo en `src/types/MiEntidad.ts`**
+   ```typescript
+   export interface MiEntidad {
+     id: string;
+     nombre: string;
+     // ... campos
+   }
+   ```
+
+2. **Crear `src/services/miEntidadService.ts`** con CRUD básico
+   ```typescript
+   export const miEntidadService = {
+     async getAll() { /* getDocs */ },
+     async getById(id) { /* getDoc */ },
+     async create(data) { /* addDoc */ },
+     async update(id, data) { /* updateDoc */ },
+     async delete(id) { /* deleteDoc */ },
+   };
+   ```
+
+3. **Crear `src/hooks/useMiEntidad.ts`** 
+   - Si los datos son críticos offline: usar `localDB` + `sync()`
+   - Si son solo lectura: usar `useOfflineSWR` con fetcher
+
+4. **Consumir en pantalla:**
+   ```typescript
+   // app/(tabs)/mi-pantalla.tsx
+   import { useMiEntidad } from '~/hooks/useMiEntidad';
+
+   export default function MiPantalla() {
+     const { items, isLoading, createItem } = useMiEntidad();
+     // Usar datos y funciones
+   }
+   ```
+
+### Decisión rápida: ¿Qué tipo de hook crear?
+
+| Necesidad | Tipo de Hook | Caché | Ejemplo |
+|---|---|---|---|
+| **Leer datos online (lectura única)** | SWR simple | ❌ En memoria | `useCongregation()` |
+| **CRUD + datos críticos offline** | `useOfflineSWR` + `localDB` | ✅ localDB | `useTerritory()`, `useGroup()` |
+| **Autenticación + sesión** | `useOfflineSWR` + `AsyncStorage` | ✅ AsyncStorage | `useUser()` |
+| **Cambios en tiempo real** | `useOfflineSWR` + `onSnapshot` | ✅ SWR + listeners | `useHouses()` |
+| **Listar + admin (no offline)** | SWR simple | ❌ En memoria | `useUsers()` |
+
+### Agregar una nueva pantalla
+1. Crear archivo en `app/(tabs)/mi-pantalla.tsx` o estructura de carpetas
+2. Expo Router la registra automáticamente
+3. Si es admin-only: agregar validación en `_layout.tsx`
+4. Usar un hook existente o crear uno nuevo si la lógica es compleja
+
+### Agregar un nuevo componente
+1. Crear en `components/MiCarpeta/MiComponente.tsx`
+2. Definir props con `interface` 
+3. **Nunca** importar servicios directamente (recibir datos por props)
+4. Emitir eventos via `onPress`, `onChange`, etc.
+
+---
+
+## 8. Decisiones de arquitectura
 
 ### ADR-01: Expo managed workflow
 **Contexto:** Proyecto enfocado en funcionalidad, sin necesidad de módulos nativos personalizados por ahora.
@@ -420,7 +1107,7 @@ match /territories/{doc=**} {
 
 ---
 
-## 7. Seguridad y Firestore Rules
+## 9. Seguridad y Firestore Rules
 
 ### 7.1 Reglas de Firestore (Implementadas - En mejora)
 
