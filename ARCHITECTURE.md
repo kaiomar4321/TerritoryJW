@@ -135,6 +135,58 @@ Pantalla (app/)
 
 ---
 
+## 🚀 Primeros Pasos
+
+### Setup Rápido
+
+```bash
+# 1. Clonar repositorio
+git clone <repo>
+cd TerritoryJW
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Configurar variables de ambiente
+cp .env.example .env
+# Llenar credenciales Firebase en .env
+
+# 4. Iniciar desarrollo
+npm start
+```
+
+### Scripts Disponibles
+
+| Script | Propósito |
+|---|---|
+| `npm start` | Inicia Metro bundler (Expo) |
+| `npm test` | Ejecuta Jest tests |
+| `npm run lint` | Verifica estilo de código (ESLint) |
+| `npm run type-check` | Verifica tipos TypeScript |
+
+### Archivos de Configuración Clave
+
+- **app.json** — Configuración de Expo (permisos, versión, nombre, etc.)
+- **firestore.rules** — Reglas de seguridad de Firestore
+- **eas.json** — Configuración de builds y deployment
+- **.env.example** — Plantilla de variables de ambiente (copiar a `.env`)
+- **tsconfig.json** — Configuración de TypeScript
+- **.eslintrc.js** — Reglas de linting
+
+### Verificar Setup
+
+```bash
+# Ver versión de Node.js (debe ser 18+)
+node --version
+
+# Verificar que Expo está OK
+npx expo doctor
+```
+
+**Para más detalles:** → [docs/development-deployment.md](docs/development-deployment.md)
+
+---
+
 ## Cómo Empezar
 
 1. **Para entender autenticación:** → [docs/auth-flow.md](docs/auth-flow.md)
