@@ -58,13 +58,56 @@ npx expo doctor   # Verificar setup de Expo
 ### Iniciar en Desarrollo
 
 ```bash
-# Terminal 1: Expo Metro Bundler
+# Terminal: Expo Metro Bundler
 npm start
-
-# Luego escanear QR con:
-# - Expo Go app (iOS/Android)
-# - O presionar 'i'/'a' para iOS/Android simulator
 ```
+
+**Output esperado:**
+
+```
+PS C:\Users\Kaiomar\Documents\Personal Proyects\TerritoryJW> npm start
+
+> my-expo-app@1.0.0 start
+> expo start
+
+Starting project at C:\Users\Kaiomar\Documents\Personal Proyects\TerritoryJW
+Starting Metro Bundler
+
+[QR Code]
+
+› Metro waiting on exp+jw-territorios://expo-development-client/?url=http%3A%2F%2F192.168.1.12%3A8081
+› Scan the QR code above to open the project in a development build.
+
+› Web is waiting on http://localhost:8081
+
+› Using development build
+› Press s │ switch to Expo Go
+
+› Press a │ open Android
+› Press w │ open web
+
+› Press j │ open debugger
+› Press r │ reload app
+› Press m │ toggle menu
+› shift+m │ more tools
+
+› Press ? │ show all commands
+
+Logs for your project will appear below. Press Ctrl+C to exit.
+```
+
+**Opciones:**
+- **Scan QR:** Escanear con tu móvil en Expo Go o development client
+- **Press 'a':** Abrir en Android simulator
+- **Press 'i':** Abrir en iOS simulator (solo en macOS)
+- **Press 'w':** Abrir en navegador web
+- **Press 's':** Si aparece "switch to Expo Go" (si no tienes development client)
+- **Press 'r':** Recargar app durante desarrollo
+- **Press 'j':** Abrir debugger
+
+**Si aparece "Press s │ switch to Expo Go":**
+- Presionar `s` si quieres cambiar a Expo Go
+- Sino, continúa normalmente
 
 ---
 
