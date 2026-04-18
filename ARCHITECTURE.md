@@ -120,6 +120,252 @@ Los componentes reciben datos únicamente por props o leyendo un context. Nunca 
 
 ---
 
+## 5.1 Flujo de Autenticación
+
+### Sistema de roles
+La aplicación distingue **tres niveles de acceso:**
+
+| Rol | Permisos | Casos de uso |
+|---|---|---|
+| **user** | Leer territorios asignados, registrar visitas, ver su perfil | Visitadores de territorios |
+| **admin** | Crear/editar/eliminar territorios y grupos, asignar territorios, promover usuarios a admin | Gestores de la congregación |
+| **superadmin** | Acceso total + cambiar roles entre cualquier nivel + auditoría | Administrador principal o soporte |
+
+### 5.1.1 Ciclo de vida de una sesión
+
+```
+┌─ INICIAL (No autenticado)
+│
+├─ LOGIN FLOW
+│  ├─ Usuario entra email + password
+│  ├─ authService.loginUser() valida en Firebase Auth
+│  ├─ Si éxito: se obtiene el rol desde Firestore
+│  ├─ Datos guardados en AsyncStorage (persistencia)
+│  ├─ useUser.userData se actualiza vía mutate()
+│  └─ Se navega a (tabs)/* automáticamente
+│
+├─ REGISTRO FLOW
+│  ├─ Usuario crea email + password + nombre + rol (default: 'user')
+│  ├─ createUserWithEmailAndPassword en Auth
+│  ├─ Se crea doc en Firestore: users/{uid}
+│  ├─ Datos cacheados en AsyncStorage
+│  └─ Auto-login o redirige a login según flujo
+│
+├─ SESIÓN ACTIVA
+│  ├─ auth.currentUser persiste automáticamente vía AsyncStorage
+│  ├─ usePermissions() valida rol en cada boot de la app
+│  ├─ Acceso a rutas (tabs)/* restringido a usuarios autenticados
+│  └─ CRUD de datos respeta roles en el cliente y servidor
+│
+├─ LOGOUT
+│  ├─ authService.logout() → signOut(auth)
+│  ├─ AsyncStorage limpia datos de sesión
+│  ├─ territorios y estado global se resetean
+│  └─ Se navega a (auth)/login
+│
+└─ RECUPERACIÓN DE CONTRASEÑA
+   ├─ Usuario ingresa email
+   ├─ sendPasswordResetEmail() de Firebase
+   ├─ Firebase envía email con link
+   ├─ Usuario clickea link y resetea offline (en web/app)
+   └─ Vuelve a login con nueva contraseña
+```
+
+### 5.1.2 Rutas públicas vs protegidas
+
+```
+Públicas (app/(auth)/)
+├─ /login              → Entrada principal sin autenticación
+├─ /register           → Crear nueva cuenta
+├─ /forgot-password    → Recuperar contraseña
+├─ /welcome            → Splash inicial (opcional)
+└─ /splash             → Loading inicial
+
+Protegidas (app/(tabs)/)
+├─ / (index.tsx)       → Territorios asignados (todos los usuarios)
+├─ /profile            → Perfil del usuario (todos)
+├─ /territories        → Gestión de territorios (admin+)
+├─ /admin/
+│  ├─ /groups          → Gestión de grupos (admin+)
+│  ├─ /users           → Gestión de usuarios y roles (admin+)
+│  └─ /group/[id]      → Detalle de grupo (admin+)
+└─ [catch-all]         → 404 dentro de la app
+```
+
+**Protección en código:**
+```typescript
+// app/(tabs)/_layout.tsx - debe chequear auth
+const { isAdmin } = usePermissions();
+const user = auth.currentUser;
+
+if (!user) {
+  // Redirigir a login (Expo Router lo hace automáticamente si no hay user)
+  return <Redirect href="/(auth)/login" />;
+}
+
+// Las rutas /admin/* deben chequear isAdmin
+if (pathname.startsWith('/admin') && !isAdmin) {
+  return <Redirect href="/(tabs)" />;
+}
+```
+
+### 5.1.3 Gestión de sesión
+
+**Persistencia (automática via Firebase):**
+```typescript
+// En src/config/firebase.ts
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
+// ✅ El usuario NO se desloguea aunque cierre la app
+```
+
+**Datos de usuario en cliente:**
+```typescript
+// useUser.ts - obtiene datos extendidos (rol, perfil, etc.)
+const { data: userData } = useOfflineSWR(`user/${uid}`, async () => {
+  // Cache offline + datos frescos de Firestore
+  const snap = await getDoc(doc(db, 'users', uid));
+  return { uid, ...snap.data() };
+});
+```
+
+**Invalidación de sesión (casos especiales):**
+- ⚠️ **Password reset:** El usuario sigue logueado, pero su contraseña cambió en el backend
+- ⚠️ **Rol revocado:** El admin quita acceso pero usuario sigue logueado localmente
+- ⚠️ **Cuenta desactivada:** Se requiere chequeo en _layout.tsx
+
+### 5.1.4 Cambio de roles
+
+**Admin promoviendo a usuario:**
+```typescript
+// userService.ts - changeUserRole()
+// ✅ Admin puede: user → admin
+// ❌ Admin NO puede: admin → superadmin ni cambios complejos
+
+// superadmin puede cualquier cambio
+```
+
+**Lado del usuario:**
+```typescript
+// Cuando el rol cambia en Firestore:
+// 1. usePermissions() re-valida en el siguiente render
+// 2. El UI se actualiza automáticamente
+// ⚠️ Si pierde acceso, redirige automáticamente de /admin a /
+```
+
+### 5.1.5 Manejo de errores de autenticación
+
+| Error | Causa | Acción |
+|---|---|---|
+| `auth/user-not-found` | Email no existe | Sugerir registro |
+| `auth/wrong-password` | Contraseña incorrecta | Opción: recuperar contraseña |
+| `auth/email-already-in-use` | Email duplicado al registrar | Pedir otro email |
+| `auth/weak-password` | Password < 6 caracteres | Mostrar requisitos |
+| `auth/too-many-requests` | Rate limiting de Firebase | Esperar 15-30 minutos |
+| `auth/invalid-email` | Formato incorrecto | Validar antes de enviar |
+| `Network error` | Sin conexión | Mostrar banner offline |
+
+**Implementación:**
+```typescript
+// useUser.ts - loginUser() captura y traduce errores
+try {
+  await signInWithEmailAndPassword(auth, email, password);
+} catch (error: any) {
+  // Traducir error.code → mensaje usuario
+  if (error.code === 'auth/wrong-password') {
+    Alert.alert('Error', '¿Olvidaste tu contraseña?');
+  }
+}
+```
+
+### 5.1.6 Estructura de código: Autenticación en capas
+
+**Archivos clave involucrados:**
+
+```
+✅ src/config/firebase.ts
+   └─ Inicializa auth con persistencia en AsyncStorage
+   
+✅ src/services/authService.ts
+   ├─ getUserRole(uid)  → Obtiene rol desde Firestore
+   ├─ getCurrentUser()   → Retorna user de Firebase Auth
+   ├─ logout()           → Limpia sesión y estado global
+   └─ Helpers: isAdmin(), isSuperAdmin()
+
+✅ src/services/userService.ts
+   └─ changeUserRole()   → Cambiar rol (con validaciones)
+
+✅ src/hooks/useUser.ts
+   ├─ userData          → Estado local del usuario
+   ├─ registerUser()    → Crear cuenta
+   ├─ loginUser()       → Iniciar sesión
+   ├─ updateUser()      → Editar perfil
+   └─ resetPassword()   → Recuperar contraseña
+
+✅ src/hooks/usePermissions.ts
+   ├─ isAdmin           → Booleano de permisos
+   └─ isLoading         → Estado de carga
+
+✅ app/(auth)/*.tsx
+   ├─ login.tsx         → Pantalla de inicio de sesión
+   ├─ register.tsx      → Pantalla de registro
+   ├─ forgot-password.tsx → Recuperación de contraseña
+   └─ splash.tsx        → Splash inicial (opcional)
+
+✅ app/(tabs)/_layout.tsx
+   └─ Protección de ruta: chequea auth.currentUser + usePermissions()
+
+✅ app/(tabs)/admin/* 
+   └─ Secciones solo para admin, validadas en _layout y componentes
+```
+
+---
+
+## 5.2 Protección de operaciones por rol
+
+### Checklist de control de acceso
+
+Cada operación crítica debe validar el rol **en DOS lugares:**
+
+1️⃣ **Cliente (UX):** No mostrar botones si usuario no tiene permiso
+```typescript
+// components/TerritoryActions.tsx
+const { isAdmin } = usePermissions();
+
+return (
+  <>
+    {isAdmin && <Button onPress={handleDelete} text="Eliminar" />}
+    {/* Si no es admin, el botón no aparece */}
+  </>
+);
+```
+
+2️⃣ **Servidor (Firestore Rules):** Rechazar operaciones no autorizadas
+```
+// firestore.rules (PENDIENTE: completar - ver 7.1)
+match /territories/{doc=**} {
+  allow read: if request.auth != null;
+  allow write: if hasRole('admin');
+  allow delete: if hasRole('superadmin');
+}
+```
+
+### Operaciones con restricción por rol
+
+| Operación | user | admin | superadmin | Ubicación |
+|---|---|---|---|---|
+| Ver territorios asignados | ✅ | ✅ | ✅ | `(tabs)` / index |
+| Registrar visita | ✅ | ✅ | ✅ | House component |
+| Editar territorios | ❌ | ✅ | ✅ | `(tabs)/territories` |
+| Crear grupo | ❌ | ✅ | ✅ | `(tabs)/admin/groups` |
+| Asignar territorio a grupo | ❌ | ✅ | ✅ | AssignTerritoryModal |
+| Cambiar rol usuario | ❌ | ✅* | ✅ | `(tabs)/admin/users` (*solo a admin) |
+| Eliminar usuario | ❌ | ❌ | ✅ | `(tabs)/admin/users` |
+| Ver logs de auditoría | ❌ | ❌ | ✅ | `(tabs)/admin/logs` (PENDIENTE) |
+
+---
+
 ## 6. Cómo extender el proyecto
 
 ### Agregar una nueva pantalla
@@ -174,7 +420,276 @@ Los componentes reciben datos únicamente por props o leyendo un context. Nunca 
 
 ---
 
-## 8. Dependencias clave
+## 7. Seguridad y Firestore Rules
+
+### 7.1 Reglas de Firestore (Implementadas - En mejora)
+
+✅ **Estado:** Las Firestore Rules **ya están parcialmente implementadas**. Sin embargo, requieren optimización y estandarización.
+
+#### Problemas actuales identificados:
+
+| Problema | Severidad | Impacto | Acción |
+|---|---|---|---|
+| **Regla temporal expirada** | 🔴 CRÍTICO | Toda la DB rechazará acceso en ago 2025 (ya ocurrió) | Remover `timestamp.date(2025, 8, 17)` |
+| **Duplicación de rules** | 🟠 IMPORTANTE | `match /territories/{territory}` aparece 2x, la 2ª anula la 1ª | Consolidar en una sola regla |
+| **Verificaciones de rol repetidas** | 🟡 IMPORTANTE | `get(/databases/.../users/...)` se ejecuta múltiples veces por request | Refactorizar a función reutilizable |
+| **`groups` muy permisiva** | 🟠 IMPORTANTE | Cualquier usuario autenticado puede escribir | Restringir a `admin` solo |
+| **`avoidHouses` poco clara** | 🟡 IMPORTANTE | ¿Por qué cualquiera puede CRUD? | Documentar propósito y restringir si aplica |
+| **Falta colección `houses`** | 🟠 IMPORTANTE | No hay rules para la colección `houses` | Agregar rules explícitas |
+| **Falta auditoría** | 🔴 CRÍTICO | No hay colección `audit_logs` definida | Crear y documentar |
+
+#### Reglas optimizadas (Recomendadas):
+
+```firestore
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // ===== FUNCIONES HELPERS =====
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+    
+    function isAdmin(uid) {
+      return getUserRole(uid) in ['admin', 'superadmin'];
+    }
+    
+    function isSuperAdmin(uid) {
+      return getUserRole(uid) == 'superadmin';
+    }
+    
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    // ===== COLECCIÓN: users =====
+    
+    match /users/{userId} {
+      // El propio usuario puede leer su documento
+      allow read: if isOwner(userId);
+      
+      // Admin y superadmin pueden leer TODOS los usuarios
+      allow read: if isAdmin(request.auth.uid);
+      
+      // El usuario puede actualizar su propio perfil (excepto rol)
+      allow update: if isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      
+      // Superadmin puede cambiar el rol de cualquiera
+      allow update: if isSuperAdmin(request.auth.uid);
+      
+      // Superadmin puede crear (nuevos usuarios - usualmente vía signup)
+      allow create: if isSuperAdmin(request.auth.uid) || 
+        (request.auth.uid == userId); // O el nuevo usuario a sí mismo
+      
+      // Solo superadmin puede eliminar usuarios
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+
+    // ===== COLECCIÓN: territories =====
+    
+    match /territories/{territoryId} {
+      // Todos los autenticados pueden LEER territorios
+      allow read: if isAuthenticated();
+      
+      // Admin+ pueden CREAR territorios
+      allow create: if isAdmin(request.auth.uid);
+      
+      // Admin+ pueden EDITAR territorios (excepto si cambia assignedUserId sin permisos)
+      allow update: if isAdmin(request.auth.uid) &&
+        // Si intenta cambiar assignedUserId, solo superadmin puede hacerlo
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedUserId']) ||
+         isSuperAdmin(request.auth.uid));
+      
+      // Solo superadmin puede ELIMINAR
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+
+    // ===== COLECCIÓN: groups =====
+    
+    match /groups/{groupId} {
+      // Todos los autenticados pueden LEER grupos
+      allow read: if isAuthenticated();
+      
+      // Solo admin+ pueden CREAR, EDITAR, ELIMINAR
+      allow create: if isAdmin(request.auth.uid);
+      allow update: if isAdmin(request.auth.uid);
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+
+    // ===== COLECCIÓN: houses =====
+    
+    match /houses/{houseId} {
+      // Todos los autenticados pueden LEER
+      allow read: if isAuthenticated();
+      
+      // Admin+ pueden CREAR
+      allow create: if isAdmin(request.auth.uid);
+      
+      // Admin+ pueden EDITAR
+      allow update: if isAdmin(request.auth.uid);
+      
+      // Superadmin+ pueden ELIMINAR
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+
+    // ===== COLECCIÓN: avoidHouses =====
+    // NOTA: Revisar propósito de esta colección
+    // Actual: Usuarios registran casas para evitar (quizá por comportamiento)
+    
+    match /avoidHouses/{houseId} {
+      // Todos pueden LEER
+      allow read: if isAuthenticated();
+      
+      // Todos pueden CREAR (registrar casa a evitar)
+      allow create: if isAuthenticated();
+      
+      // Todos pueden EDITAR su propio registro (si tienes ownership)
+      // PENDIENTE: Definir structure - ¿tiene userUid? ¿hasMany records?
+      allow update: if isAuthenticated();
+      
+      // Superadmin puede ELIMINAR
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+
+    // ===== COLECCIÓN: audit_logs (NUEVA) =====
+    // Para trackear cambios críticos: cambios de rol, eliminaciones, etc.
+    
+    match /audit_logs/{logId} {
+      // Admin+ pueden LEER logs
+      allow read: if isAdmin(request.auth.uid);
+      
+      // Solo sistema puede escribir (via Cloud Functions)
+      // Bloqueamos writes directas desde el cliente
+      allow write: if false;
+    }
+
+    // ===== COLECCIÓN: visitNotes (SUGERIDA) =====
+    // Si existe, agregar rules para notas de visitas
+    
+    match /visitNotes/{noteId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated(); // Cada usuario sus notas
+      allow delete: if isSuperAdmin(request.auth.uid);
+    }
+  }
+}
+```
+
+#### Cambios respecto a lo que tenías:
+
+| Cambio | Razón |
+|---|---|
+| Remover regla con `timestamp.date(2025, 8, 17)` | Ya expiró; expone la BD |
+| Consolidar 2x `match /territories` | Evita conflictos y confusión |
+| Crear funciones helper | Reduce duplicación y mejora legibilidad |
+| Restringir `groups` a admin | Mayor seguridad |
+| Clarificar `avoidHouses` | Revisar si el acceso debe ser tan abierto |
+| Agregar `houses` rules explícitas | Falta en tu config actual |
+| Agregar `audit_logs` | Para cumplir P4 (auditoría) |
+
+**Nota:** Estas reglas aún no usan **Custom Claims** de Firebase Auth (ver 7.2). El enfoque actual hace GET al documento `/users/{uid}` cada vez, lo que consume lecturas. Para producción, considera implementar Custom Claims.
+
+### 7.2 Custom Claims (FUTURO - Recomendado para optimizar)
+
+Actualmente, los roles se almacenan en Firestore (`users/{uid}.role`). Esto funciona, pero cada validación en Firestore Rules hace un GET adicional a la BD.
+
+**Alternativa: Custom Claims en Firebase Auth**
+
+Los roles en Firebase Custom Claims ofrecen ventajas en producción:
+
+```typescript
+// Cloud Function (ejecutarse con admin SDK)
+// functions/src/triggers/setUserRole.ts
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+
+export const setUserRole = functions.https.onCall(async (data, context) => {
+  const { targetUserId, newRole } = data;
+  
+  // Solo superadmin puede cambiar roles
+  const caller = await admin.auth().getUser(context.auth!.uid);
+  if (caller.customClaims?.role !== 'superadmin') {
+    throw new functions.https.HttpsError('permission-denied', 'No autorizado');
+  }
+  
+  // Validar rol válido
+  if (!['user', 'admin', 'superadmin'].includes(newRole)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Rol inválido');
+  }
+  
+  // Establecer custom claim
+  await admin.auth().setCustomUserClaims(targetUserId, { role: newRole });
+  
+  // TAMBIÉN actualizar en Firestore para consistency
+  await admin.firestore().collection('users').doc(targetUserId).update({ 
+    role: newRole,
+    roleUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+  
+  return { success: true, message: `Rol actualizado a ${newRole}` };
+});
+```
+
+**Ventajas:**
+- ✅ Los roles en el token JWT → no requiere GET adicional en Rules
+- ✅ Más rápido y eficiente en operaciones batch
+- ✅ Más seguro: rol verificado por Firebase directamente
+
+**Desventajas:**
+- ❌ Requiere Cloud Functions (costo adicional)
+- ❌ Cambios de rol tardan ~1 minuto en propagarse al token
+
+**Recomendación:** Implementar cuando escale a producción con múltiples usuarios.
+
+---
+
+## 8. Decisiones aún pendientes
+
+Estos temas requieren seguimiento y optimización:
+
+
+| # | Tema | Estado | Impacto | Sugerencias | Responsable |
+|---|---|---|---|---|---|
+| **P1** | **Firestore Rules** | 🟢 PARCIAL | 🟡 IMPORTANTE | Implementadas pero necesitan optimización (ver 7.1) | Backend |
+| **P2** | **Remover regla temporal expirada** | 🔴 CRÍTICO | 🔴 CRÍTICO | Remove `timestamp.date(2025, 8, 17)` inmediatamente | URGENTE |
+| **P3** | **Custom Claims / Cloud Functions** | 🔴 FUTURO | 🟠 IMPORTANTE | Optimizar roles en producción (ver 7.2) | Backend |
+| **P4** | **Implementar auditoría** | 🔴 NO INICIADO | 🟠 IMPORTANTE | Crear colección `audit_logs` + Cloud Function para trackear cambios | Backend |
+| **P5** | **Revisar colección `avoidHouses`** | 🟡 ACTIVA | 🟡 IMPORTANTE | Documentar propósito y validar permisos | Product |
+| **P6** | **Expiración de sesión** | 🔴 NO DEFINIDO | 🟠 IMPORTANTE | ¿Timeout de inactividad? Actualmente: nunca expira | Security |
+| **P7** | **Rate limiting en login** | 🔴 NO IMPLEMENTADO | 🟠 IMPORTANTE | Evitar brute force (Firebase tiene limitaciones) | Backend |
+| **P8** | **2FA / Verificación de email** | 🟡 FUTURO | 🟡 IMPORTANTE | ¿Email verificado obligatorio? ¿Autenticador? | Security |
+| **P9** | **Encriptar datos offline** | 🟡 FUTURO | 🟡 IMPORTANTE | ¿Encriptar AsyncStorage? Ver: `expo-secure-store` | Security |
+| **P10** | **Revocar sesión remotamente** | 🟡 FUTURO | 🟡 IMPORTANTE | Si cuenta se compromete, ¿logout desde backend? | Security |
+| **P11** | **Estructura de `avoidHouses`** | 🟡 REVISAR | 🟡 IMPORTANTE | ¿Tiene `userUid`? ¿Multiple records per house? Documentar modelo | Product |
+
+### Checklist inmediato (Antes de producción)
+
+- [ ] **🔴 URGENTE:** Remover regla con `timestamp.date(2025, 8, 17)` de Firestore Rules
+- [ ] **Consolidar rules** de `territories` (hay duplicación)
+- [ ] **Documentar propósito** de `avoidHouses` colección
+- [ ] **Rate limiting** en Firebase Auth (investigar opciones)
+- [ ] **Auditoría básica** de cambios de rol + eliminaciones
+- [ ] **Validaciones** en cliente AND servidor
+- [ ] **Tests de seguridad** (inyección, CORS, auth edge cases)
+
+### Checklist pre-productivo
+
+- [ ] **Custom Claims** implementados en Cloud Function (opcional pero recomendado)
+- [ ] **Email verification** requerida (si aplica)
+- [ ] **Timeout de sesión** configurado (si es que aplica)
+- [ ] **Documentación** de roles y permisos en README
+- [ ] **Audit trail** funcional para cambios críticos
+
+---
+
+## 9. Dependencias clave
 
 | Librería | Rol | Notas |
 |---|---|---|
@@ -186,7 +701,7 @@ Los componentes reciben datos únicamente por props o leyendo un context. Nunca 
 
 ---
 
-## 9. Patrón Offline-First
+## 10. Patrón Offline-First
 
 La app está diseñada para funcionar sin conexión a internet. Los usuarios pueden seguir interactuando con territorios, editar datos, y todo se sincroniza cuando vuelve la conexión.
 
@@ -299,7 +814,7 @@ Cuando agregues `miColeccion`:
 - [ ] Agregar clave en AsyncStorage (ej: `local_miColeccion`)
 - [ ] Documentar TTL y estrategia de sync (bajo demanda vs global)
 
-### 9.7 Consideraciones y mejoras futuras
+### 10.7 Consideraciones y mejoras futuras
 
 ⚠️ **Puntos abiertos a resolver:**
 
@@ -315,7 +830,7 @@ Cuando agregues `miColeccion`:
 
 ---
 
-## 10. Variables de entorno
+## 11. Variables de entorno
 
 Las variables sensibles (API keys de Firebase, etc.) se manejan con `app.config.ts` y el sistema de `extra` de Expo, **nunca hardcodeadas en el código fuente**.
 
