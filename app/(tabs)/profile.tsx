@@ -78,6 +78,30 @@ export default function Profile() {
               {userData?.email}
             </Text>
 
+            {/* 🆕 Mostrar rol */}
+            <View className="mt-2 flex-row items-center gap-2">
+              <Ionicons
+                name={
+                  userData?.role === 'superadmin'
+                    ? 'shield'
+                    : userData?.role === 'admin'
+                      ? 'briefcase'
+                      : 'person'
+                }
+                size={16}
+                color={
+                  userData?.role === 'superadmin'
+                    ? '#e11d48'
+                    : userData?.role === 'admin'
+                      ? '#6d28d9'
+                      : '#6b7280'
+                }
+              />
+              <Text className="text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
+                Rol: {userData?.role || 'usuario'}
+              </Text>
+            </View>
+
             {!isEditing && (
               <View className=" w-2/3 p-2">
                 <CustomButton

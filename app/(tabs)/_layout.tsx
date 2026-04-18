@@ -12,6 +12,13 @@ export default function TabsLayout() {
 
   const role = userData?.role;
 
+  // 🔍 Logs para debugging
+  console.log('📋 _layout.tsx - role:', role, '| loading:', loading, '| userData:', userData?.email);
+
+  // ✅ Solo mostrar admin tabs si es admin o superadmin
+  const isAdmin = role === 'admin' || role === 'superadmin';
+  console.log('✅ isAdmin:', isAdmin, '| Mostrar tabs admin?', isAdmin);
+
   return (
     <Tabs
       screenOptions={{
@@ -49,7 +56,7 @@ export default function TabsLayout() {
       />
 
       {/* ✅ Solo visible si es admin o superadmin */}
-      {(role === 'admin' || role === 'superadmin') && (
+      {isAdmin && (
         <Tabs.Screen
           name="admin/users"
           options={{
@@ -61,7 +68,7 @@ export default function TabsLayout() {
         />
       )}
 
-      {(role === 'admin' || role === 'superadmin') && (
+      {isAdmin && (
         <Tabs.Screen
           name="admin/groups"
           options={{

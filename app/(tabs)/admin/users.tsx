@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { auth } from '~/config/firebase';
 import { useUser } from '~/hooks/useUser';
 import ThemedText from 'components/ThemedText';
@@ -20,8 +19,6 @@ import { userService } from '~/services/userService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from 'components/styles';
 import { animations } from '~/utils/animations';
-
-const db = getFirestore();
 
 export default function UsersScreen() {
   const { userData } = useUser();
@@ -39,15 +36,12 @@ export default function UsersScreen() {
   async function fetchUsers() {
     try {
       setLoading(true);
-      const querySnapshot = await getDocs(collection(db, 'users'));
-      const usersList = querySnapshot.docs.map((d) => ({
-        uid: d.id,
-        ...d.data(),
-      }));
+      const usersList = await userService.getAllUsers();
       setUsers(usersList);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al obtener usuarios:', error);
-      Alert.alert('Error', 'No se pudieron cargar los usuarios.');
+      const errorMessage = error.message || 'No se pudieron cargar los usuarios.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -74,12 +68,12 @@ export default function UsersScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteDoc(doc(db, 'users', uid));
+            await userService.deleteUser(uid);
             Alert.alert('Eliminado', 'Usuario eliminado correctamente.');
             fetchUsers();
-          } catch (error) {
+          } catch (error: any) {
             console.error('Error al eliminar usuario:', error);
-            Alert.alert('Error', 'No se pudo eliminar el usuario.');
+            Alert.alert('Error', error.message || 'No se pudo eliminar el usuario.');
           }
         },
       },
