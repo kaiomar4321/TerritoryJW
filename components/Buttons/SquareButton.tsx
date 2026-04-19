@@ -18,7 +18,7 @@ const SquareButton: React.FC<SquareButtonProps> = ({ text, icon, onPress, isSele
     <TouchableOpacity
       onPress={onPress}
       className={clsx(
-        'h-22 w-22 flex-col items-center justify-center overflow-hidden rounded-lg shadow-md p-2 mb-1',
+        'w-20 aspect-square flex-col items-center justify-center overflow-hidden rounded-lg shadow-md',
         isSelected ? 'bg-morado dark:bg-morado' : 'bg-white dark:bg-black2'
       )}>
       <Ionicons

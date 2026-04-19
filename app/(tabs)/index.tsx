@@ -186,7 +186,7 @@ export default function TabIndex() {
 
         {/* Modo admin */}
         {isAdmin && !selectedTerritory && (
-          <View className="absolute right-2 top-5 gap-2 rounded-xl bg-white dark:bg-black2 p-2 shadow-lg ">
+          <View className="absolute left-2 top-5 flex flex-col items-center justify-center gap-0 rounded-xl bg-white dark:bg-black2 shadow-lg p-2">
             <SquareButton
               text={!isEditMode ? 'Nuevo Territorio' : 'Cancelar'}
               icon={!isEditMode ? 'add-circle-outline' : 'close-circle-outline'}
