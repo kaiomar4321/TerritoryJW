@@ -13,27 +13,11 @@ export const userService = {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error('No autenticado');
 
-    console.log('👤 Usuario autenticado:', {
-      uid: currentUser.uid,
-      email: currentUser.email,
-      displayName: currentUser.displayName,
-    });
-
-    // Validar que sea admin
     const currentRef = doc(db, 'users', currentUser.uid);
     const currentSnap = await getDoc(currentRef);
     const currentRole = currentSnap.data()?.role;
 
-    console.log('🔑 Rol del usuario actual:', currentRole);
-
     if (currentRole !== 'admin' && currentRole !== 'superadmin') {
-      console.error(
-        '❌ Acceso denegado. El usuario',
-        currentUser.email,
-        'tiene rol:',
-        currentRole,
-        'pero se requiere admin o superadmin'
-      );
       throw new Error(`Acceso denegado. Tu rol es: "${currentRole}". Se requiere: admin o superadmin`);
     }
 

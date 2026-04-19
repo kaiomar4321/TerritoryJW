@@ -4,20 +4,14 @@ import { useUser } from '~/hooks/useUser';
 import { useTheme } from '~/context/ThemeContext';
 
 export default function TabsLayout() {
-  // ✅ Obtenemos los datos del usuario desde tu propio hook
-  const { userData, loading } = useUser();
+  const { userData, loading, isFetching } = useUser();
   const { isDark } = useTheme();
 
-  if (loading) return null; // o muestra un loader si prefieres
+  if (loading || isFetching || !userData || !userData.role) {
+    return null;
+  }
 
-  const role = userData?.role;
-
-  // 🔍 Logs para debugging
-  console.log('📋 _layout.tsx - role:', role, '| loading:', loading, '| userData:', userData?.email);
-
-  // ✅ Solo mostrar admin tabs si es admin o superadmin
-  const isAdmin = role === 'admin' || role === 'superadmin';
-  console.log('✅ isAdmin:', isAdmin, '| Mostrar tabs admin?', isAdmin);
+  const isAdmin = userData.role === 'admin' || userData.role === 'superadmin';
 
   return (
     <Tabs
@@ -55,30 +49,28 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* ✅ Solo visible si es admin o superadmin */}
-      {isAdmin && (
-        <Tabs.Screen
-          name="admin/users"
-          options={{
-            title: 'Usuarios',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="people-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      {/* ✅ Admin Tabs - siempre declarados, pero ocultos si no eres admin */}
+      <Tabs.Screen
+        name="admin/users"
+        options={{
+          title: 'Usuarios',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
 
-      {isAdmin && (
-        <Tabs.Screen
-          name="admin/groups"
-          options={{
-            title: 'Grupos',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="grid-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="admin/groups"
+        options={{
+          title: 'Grupos',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" size={size} color={color} />
+          ),
+        }}
+      />
 
       <Tabs.Screen
         name="admin/group/[id]"

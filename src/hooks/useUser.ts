@@ -35,13 +35,9 @@ export const useUser = () => {
       const snap = await getDoc(docRef);
 
       if (snap.exists()) {
-        const data = snap.data();
-        console.log('👤 useUser: Datos cargados de Firestore:', { uid, email: data?.email, role: data?.role });
-        return { uid, ...data };
+        return { uid, ...snap.data() };
       } else {
-        // fallback a datos de auth si no hay documento en Firestore
         const role = await authService.getUserRole(uid);
-        console.log('👤 useUser: Fallback a authService, rol:', role);
         return {
           uid,
           displayName: auth.currentUser?.displayName || '',
@@ -239,6 +235,7 @@ export const useUser = () => {
     updateUser,
     resetPassword,
     loading: isLoadingAction || isFetching,  // ✅ Incluir isFetching
+    isFetching,  // 🆕 Exponer isFetching por separado
     error,
   };
 };

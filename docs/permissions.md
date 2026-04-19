@@ -62,6 +62,61 @@ Sistema de permisos y validación de acceso en cliente y servidor.
 
 ---
 
+## Protección de Rutas con Expo Router
+
+### Concepto: `href: null` vs `href: undefined`
+
+En Expo Router, las rutas se registran automáticamente basándose en la estructura de archivos. Para controlar su visibilidad en el tab bar:
+
+**`href: null`** ➜ La ruta existe pero **NO se muestra** en el tab bar
+```typescript
+<Tabs.Screen name="admin/users" options={{ href: null }} />
+// ✅ Ruta interna (puede ser accedida, pero no visible)
+```
+
+**`href: undefined`** (o no especificar `href`) ➜ La ruta **SÍ se muestra** en el tab bar
+```typescript
+<Tabs.Screen name="admin/users" options={{ href: undefined }} />
+// ✅ Ruta visible como tab
+```
+
+### Implementación con Permisos
+
+```typescript
+// app/(tabs)/_layout.tsx
+const isAdmin = userData.role === 'admin' || userData.role === 'superadmin';
+
+<Tabs.Screen
+  name="admin/users"
+  options={{
+    title: 'Usuarios',
+    href: isAdmin ? undefined : null,  // ← Clave: condicional
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="people-outline" size={size} color={color} />
+    ),
+  }}
+/>
+```
+
+**Flujo:**
+- Si `isAdmin: true` → `href: undefined` → **Tab visible** ✅
+- Si `isAdmin: false` → `href: null` → **Tab oculto** ✅
+
+### Rutas Internas (Nunca visibles)
+
+Rutas que existen pero nunca deben aparecer en el tab bar:
+
+```typescript
+<Tabs.Screen
+  name="admin/group/[id]"
+  options={{
+    href: null,  // Siempre oculto
+  }}
+/>
+```
+
+---
+
 ## Validación en Cliente
 
 ### Hook `usePermissions()`
@@ -90,22 +145,54 @@ const isSuperAdmin = userData?.role === 'superadmin';
 ```typescript
 // app/(tabs)/_layout.tsx
 export default function TabsLayout() {
-  const { isAdmin } = usePermissions();
-  const user = auth.currentUser;
+  const { userData, loading, isFetching } = useUser();
 
-  // 1️⃣ Sin autenticación
-  if (!user) {
-    return <Redirect href="/(auth)/login" />;
+  // Esperar a que userData esté completamente cargado
+  if (loading || isFetching || !userData || !userData.role) {
+    return null;
   }
 
-  // 2️⃣ Intentando acceder a admin sin permisos
-  if (router.pathname.startsWith('/admin') && !isAdmin) {
-    return <Redirect href="/(tabs)" />;
-  }
+  const isAdmin = userData.role === 'admin' || userData.role === 'superadmin';
 
-  return <Tabs />;
+  return (
+    <Tabs>
+      {/* Tabs públicos (todos ven) */}
+      <Tabs.Screen name="index" options={{ title: 'Mapa' }} />
+      <Tabs.Screen name="territories" options={{ title: 'Territorios' }} />
+
+      {/* Tabs admin (condicionales) */}
+      <Tabs.Screen
+        name="admin/users"
+        options={{
+          title: 'Usuarios',
+          href: isAdmin ? undefined : null,  // ← Ocultado si no eres admin
+        }}
+      />
+      <Tabs.Screen
+        name="admin/groups"
+        options={{
+          title: 'Grupos',
+          href: isAdmin ? undefined : null,  // ← Ocultado si no eres admin
+        }}
+      />
+
+      {/* Rutas internas (nunca visibles) */}
+      <Tabs.Screen
+        name="admin/group/[id]"
+        options={{ href: null }}
+      />
+
+      <Tabs.Screen name="profile" options={{ title: 'Perfil' }} />
+    </Tabs>
+  );
 }
 ```
+
+**Beneficios:**
+1. ✅ **Seguridad visual:** Si no eres admin, no ves los tabs
+2. ✅ **Simplicidad:** No necesitas `if` condicionales para renderizar
+3. ✅ **Protección en ruta:** Las pantallas `admin/*` aún validan permisos internally
+4. ✅ **UX clara:** El usuario no ve tabs que no puede usar
 
 ---
 
