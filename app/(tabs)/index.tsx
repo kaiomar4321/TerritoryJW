@@ -1,13 +1,15 @@
 import { View, ActivityIndicator } from 'react-native';
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { useLocation } from '~/hooks/useLocation';
 import { useTerritory } from '~/hooks/useTerritory';
 import { useHouses } from '~/hooks/useHouses';
 import { usePermissions } from '~/hooks/usePermissions';
 import { getPolygonCenter } from '~/utils/mapUtils';
+import { Territory } from '~/types/Territory';
+import { House } from '~/services/houseService';
 
 import TerritoryDetails from 'components/TerritoryDetails/TerritoryDetails';
 import SquareButton from 'components/Buttons/SquareButton';
@@ -18,7 +20,7 @@ import TerritoryPolygons from 'components/Map/TerritoryPolygons';
 
 
 export default function TabIndex() {
-  const { location, getLocation, focusOnTerritory, mapRef } = useLocation();
+  const { location, getLocation, focusOnTerritory, mapRef, getTerritoriesInViewport, handleRegionChange } = useLocation();
   const { territoryId } = useLocalSearchParams();
   const {
     filteredTerritories,
@@ -51,6 +53,27 @@ export default function TabIndex() {
 
   const { isAdmin, isLoading } = usePermissions();
 
+  // 🔍 Calcular territorios visibles en el viewport
+  const territoriesInViewport = useMemo(() => {
+    return getTerritoriesInViewport(filteredTerritories);
+  }, [filteredTerritories, getTerritoriesInViewport]);
+
+  // ⚡ Memoizar callbacks para evitar re-creates innecesarios
+  const handleTerritoryPress = useCallback((territory: Territory) => {
+    setSelectedTerritory(territory);
+    setSelectedHouse(null);
+    focusOnTerritory(territory);
+  }, []);
+
+  const handleSelectHouse = useCallback((house: House) => {
+    setSelectedHouse(house);
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedTerritory(null);
+    setSelectedHouse(null);
+  }, []);
+
   useEffect(() => {
     if (territoryId && filteredTerritories.length > 0) {
       const territory = filteredTerritories.find((t) => t.id === territoryId);
@@ -77,6 +100,7 @@ export default function TabIndex() {
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={{ flex: 1 }}
+          removeClippedSubviews={true}
           
           initialRegion={{
             latitude: 19.513628294348678,
@@ -84,6 +108,7 @@ export default function TabIndex() {
             latitudeDelta: 0.05,
             longitudeDelta: 0.05,
           }}
+          onRegionChangeComplete={handleRegionChange}
           onPress={(e) => {
             if (!isAddingHouse) {
               handleMapPress(e, isAdmin);
@@ -110,13 +135,9 @@ export default function TabIndex() {
 
           {/* Territorios */}
           <TerritoryPolygons
-            territories={filteredTerritories}
+            territories={territoriesInViewport}
             selectedTerritory={selectedTerritory}
-            onTerritoryPress={(territory) => {
-              setSelectedTerritory(territory);
-              setSelectedHouse(null);
-              focusOnTerritory(territory);
-            }}
+            onTerritoryPress={handleTerritoryPress}
             isAddingHouse={isAddingHouse}
             onAddingHouse={handleAddingHouse}
           />
@@ -133,7 +154,7 @@ export default function TabIndex() {
                 coordinate={house.coordinates}
                 draggable
                 onDragEnd={(e) => updateHouse(house.id, { coordinates: e.nativeEvent.coordinate })}
-                onPress={() => setSelectedHouse(house)}
+                onPress={() => handleSelectHouse(house)}
               />
             ))}
 
@@ -168,10 +189,7 @@ export default function TabIndex() {
         {/* Detalles de territorio */}
         <TerritoryDetails
           territory={selectedTerritory}
-          onClose={() => {
-            setSelectedTerritory(null);
-            setSelectedHouse(null);
-          }}
+          onClose={handleClearSelection}
           onUpdate={updateTerritory}
           onAddingHouse={handleAddingHouse}
           onRestart={restartTerritory}

@@ -29,7 +29,7 @@ export const useTerritory = (options?: { revalidateOnFocus?: boolean }) => {
   } = useOfflineSWR<Territory[]>(TERRITORIES_KEY, territoriesFetcher, {
     revalidateOnFocus: options?.revalidateOnFocus ?? true,
     revalidateOnReconnect: true,
-    dedupingInterval: 2000,
+    dedupingInterval: 10000, // 10 segundos (fue 2000) - reduce revalidaciones innecesarias
     errorRetryCount: 3,
     ttl: 1000 * 60 * 60 * 24, // 24h
   });

@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, Text, View, useColorScheme, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { FlatList, Text, View, useColorScheme, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { clsx } from 'clsx';
 import { useRouter } from 'expo-router';
@@ -68,18 +68,25 @@ export default function Territories() {
       </View>
 
       {/* Bottom Sheet con Moti */}
-      <ScrollView contentContainerStyle={{ padding: 12 }}>
-        {searchQuery.trim() !== '' && (
-          <View className="mb-3 px-2">
-            <Text className="text-sm text-gray-600 dark:text-gray-400">
-              {filteredAndSortedTerritories.length} resultado
-              {filteredAndSortedTerritories.length !== 1 ? 's' : ''}
-              {searchQuery.trim() && ` para "${searchQuery}"`}
-            </Text>
-          </View>
-        )}
-
-        {filteredAndSortedTerritories.length === 0 ? (
+      <FlatList
+        data={filteredAndSortedTerritories}
+        keyExtractor={(item) => item.id}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        contentContainerStyle={{ padding: 12 }}
+        ListHeaderComponent={
+          searchQuery.trim() !== '' ? (
+            <View className="mb-3 px-2">
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                {filteredAndSortedTerritories.length} resultado
+                {filteredAndSortedTerritories.length !== 1 ? 's' : ''}
+                {searchQuery.trim() && ` para "${searchQuery}"`}
+              </Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
           <View className="items-center justify-center py-10">
             <Text className="text-lg text-gray-500 dark:text-gray-400">
               {searchQuery.trim()
@@ -87,55 +94,54 @@ export default function Territories() {
                 : 'No hay territorios disponibles'}
             </Text>
           </View>
-        ) : (
-          filteredAndSortedTerritories.map((territory) => (
-            <TouchableOpacity
-              key={territory.id}
-              activeOpacity={0.7}
-              onPress={() =>
-                router.push({ pathname: '/' as any, params: { territoryId: territory.id } })
-              }
-              className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-black3">
-              {/* Número */}
-              <View
-                className={clsx('w-24 items-center justify-center')}
-                style={{ backgroundColor: getTerritoryStatus(territory).colorHex }}>
-                <Text className="text-3xl font-bold text-white">{territory.number}</Text>
-              </View>
+        }
+        renderItem={({ item: territory }) => (
+          <TouchableOpacity
+            key={territory.id}
+            activeOpacity={0.7}
+            onPress={() =>
+              router.push({ pathname: '/' as any, params: { territoryId: territory.id } })
+            }
+            className="mb-3 flex-row overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-black3">
+            {/* Número */}
+            <View
+              className={clsx('w-24 items-center justify-center')}
+              style={{ backgroundColor: getTerritoryStatus(territory).colorHex }}>
+              <Text className="text-3xl font-bold text-white">{territory.number}</Text>
+            </View>
 
-              {/* Info */}
-              <View className="flex-1 p-3">
-                <ThemedText className="text-lg font-semibold">{territory.name}</ThemedText>
+            {/* Info */}
+            <View className="flex-1 p-3">
+              <ThemedText className="text-lg font-semibold">{territory.name}</ThemedText>
 
-                <Text className="text-sm text-gray-600 dark:text-gray-400">
-                  {territory.visitStartDate
-                    ? `Inició: ${formatDate(territory.visitStartDate)}`
-                    : 'Sin fecha todavía'}
-                </Text>
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                {territory.visitStartDate
+                  ? `Inició: ${formatDate(territory.visitStartDate)}`
+                  : 'Sin fecha todavía'}
+              </Text>
 
-                <Text className="text-sm text-gray-600 dark:text-gray-400">
-                  {territory.visitEndDate ? `Finalizó: ${formatDate(territory.visitEndDate)}` : ''}
-                </Text>
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                {territory.visitEndDate ? `Finalizó: ${formatDate(territory.visitEndDate)}` : ''}
+              </Text>
 
-                {territory.note ? (
-                  <View className="mt-1 bg-slate-100 p-1 dark:bg-black2">
-                    <Text className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Nota:
-                    </Text>
-                    <Text className="text-sm text-gray-700 dark:text-gray-300">
-                      {territory.note}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text className="mt-1 text-xs italic text-gray-400 dark:text-gray-500">
-                    Sin notas
+              {territory.note ? (
+                <View className="mt-1 bg-slate-100 p-1 dark:bg-black2">
+                  <Text className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Nota:
                   </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))
+                  <Text className="text-sm text-gray-700 dark:text-gray-300">
+                    {territory.note}
+                  </Text>
+                </View>
+              ) : (
+                <Text className="mt-1 text-xs italic text-gray-400 dark:text-gray-500">
+                  Sin notas
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
         )}
-      </ScrollView>
+      />
       <FilterSortBottomSheet
         visible={bottomSheetOpen}
         onClose={() => setBottomSheetOpen(false)}
