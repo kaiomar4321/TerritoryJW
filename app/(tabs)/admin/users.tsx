@@ -47,9 +47,8 @@ export default function UsersScreen() {
     }
   }
 
-  const handleChangeRole = async (uid: string, currentRole: string) => {
+  const handleChangeRole = async (uid: string, newRole: string) => {
     try {
-      const newRole = currentRole === 'user' ? 'admin' : 'user';
       await userService.changeUserRole(uid, newRole);
       Alert.alert('Éxito', `Rol cambiado a ${newRole}`);
       fetchUsers();
