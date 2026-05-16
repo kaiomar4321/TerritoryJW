@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useGroup } from '~/hooks/useGroup';
 import { useUsers } from '~/hooks/useUsers';
+import { styles } from 'components/styles';
 
 interface Props {
   visible: boolean;
@@ -27,29 +28,29 @@ export const CreateGroupModal = ({ visible, onClose }: Props) => {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View className="flex-1 justify-end bg-black/40">
-        <View className="rounded-t-2xl bg-white p-5">
-          <Text className="mb-4 text-lg font-bold text-gray-800">Crear Grupo</Text>
+        <View className="rounded-t-2xl bg-white dark:bg-black2 p-5">
+          <Text className={styles.sectionTitle}>Crear Grupo</Text>
 
           <TextInput
             placeholder="Número de grupo"
             keyboardType="numeric"
             value={number}
             onChangeText={setNumber}
-            className="mb-3 rounded-md border px-3 py-2"
+            className={styles.input}
           />
 
-          <Text className="font-semibold text-gray-700 mb-2">Seleccionar encargado:</Text>
+          <Text className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Seleccionar encargado:</Text>
           {users.map((u) => (
             <TouchableOpacity
               key={u.id}
               onPress={() => setLeaderId(u.id)}
               className={`mb-1 rounded-md px-3 py-2 ${
-                leaderId === u.id ? 'bg-purple-600' : 'bg-gray-100'
+                leaderId === u.id ? 'bg-purple-600' : 'bg-gray-100 dark:bg-gray-700'
               }`}
             >
               <Text
                 className={`${
-                  leaderId === u.id ? 'text-white' : 'text-gray-800'
+                  leaderId === u.id ? 'text-white' : 'text-gray-800 dark:text-white'
                 }`}
               >
                 {u.displayName}

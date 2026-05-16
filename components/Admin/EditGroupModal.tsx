@@ -2,6 +2,7 @@ import { View, Text, Modal, TextInput, ScrollView, TouchableOpacity, Alert } fro
 import React, { useState, useEffect } from 'react';
 import { CustomButton } from 'components/CustomButton';
 import { Group } from '~/types/Group';
+import { styles } from 'components/styles';
 
 interface EditGroupModalProps {
   visible: boolean;
@@ -59,28 +60,28 @@ export const EditGroupModal: React.FC<EditGroupModalProps> = ({
       transparent={true}
       onRequestClose={onClose}>
       <View className="flex-1 items-center justify-center bg-black/50">
-        <View className="w-11/12 rounded-2xl bg-white p-6">
-          <Text className="mb-4 text-xl font-bold">Editar Grupo</Text>
+        <View className="w-11/12 rounded-2xl bg-white dark:bg-black2 p-6">
+          <Text className={styles.sectionTitle}>Editar Grupo</Text>
 
-          <Text className="mb-2 text-sm font-medium text-gray-700">Número del Grupo</Text>
+          <Text className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Número del Grupo</Text>
           <TextInput
             value={editNumber}
             onChangeText={setEditNumber}
             keyboardType="numeric"
-            className="mb-4 rounded-lg border border-gray-300 p-3"
+            className={styles.input}
             placeholder="Ej: 1"
             editable={!isLoading}
           />
 
-          <Text className="mb-2 text-sm font-medium text-gray-700">Encargado</Text>
-          <ScrollView className="mb-4 max-h-40 rounded-lg border border-gray-300">
+          <Text className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Encargado</Text>
+          <ScrollView className="mb-4 max-h-40 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-black3">
             {availableLeaders.map((user) => (
               <TouchableOpacity
                 key={user.id}
                 onPress={() => !isLoading && setEditLeaderId(user.id)}
-                className={`p-3 ${editLeaderId === user.id ? 'bg-blue-100' : ''}`}
+                className={`p-3 ${editLeaderId === user.id ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
                 disabled={isLoading}>
-                <Text className={`${editLeaderId === user.id ? 'font-bold text-blue-600' : ''}`}>
+                <Text className={`${editLeaderId === user.id ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
                   {user.displayName || user.email}
                 </Text>
               </TouchableOpacity>

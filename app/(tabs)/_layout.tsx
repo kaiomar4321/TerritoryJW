@@ -72,7 +72,7 @@ export default function TabsLayout() {
         }}
       />
 
-      {(role === 'admin' || role === 'superadmin') && (
+      {isAdmin && (
         <Tabs.Screen
           name="admin/report"
           options={{
