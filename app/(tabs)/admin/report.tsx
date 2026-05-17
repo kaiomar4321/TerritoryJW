@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import {
   ScrollView,
   Text,
@@ -6,106 +6,20 @@ import {
   useColorScheme,
   ActivityIndicator,
   TouchableOpacity,
-  Share,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTerritory } from '~/hooks/useTerritory';
+import { useReport } from '~/hooks/useReport';
 import { Territory } from '~/types/Territory';
+import { formatDate } from '~/services/reportService';
 import { styles } from 'components/styles';
-
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-const formatDate = (value: any): string => {
-  if (!value) return '—';
-  try {
-    const date = value?.toDate ? value.toDate() : new Date(value);
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    }).format(date);
-  } catch {
-    return '—';
-  }
-};
-
-const formatDateShort = (value: any): string => {
-  if (!value) return '—';
-  try {
-    const date = value?.toDate ? value.toDate() : new Date(value);
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date);
-  } catch {
-    return '—';
-  }
-};
-
-const isCompleted = (t: Territory) => !!t.visitStartDate && !!t.visitEndDate;
-
-// ─── sort options ────────────────────────────────────────────────────────────
-
-type SortKey = 'number_asc' | 'number_desc' | 'date_asc' | 'date_desc';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'number_asc', label: 'Nº ↑' },
-  { key: 'number_desc', label: 'Nº ↓' },
-  { key: 'date_asc', label: 'Fecha ↑' },
-  { key: 'date_desc', label: 'Fecha ↓' },
-];
-
-const sortTerritories = (list: Territory[], sort: SortKey): Territory[] => {
-  return [...list].sort((a, b) => {
-    if (sort === 'number_asc') return a.number - b.number;
-    if (sort === 'number_desc') return b.number - a.number;
-
-    const dateA = a.visitEndDate ? new Date(a.visitEndDate).getTime() : 0;
-    const dateB = b.visitEndDate ? new Date(b.visitEndDate).getTime() : 0;
-    if (sort === 'date_asc') return dateA - dateB;
-    return dateB - dateA; // date_desc
-  });
-};
 
 // ─── component ───────────────────────────────────────────────────────────────
 
 export default function TerritoryReport() {
-  const { territories, isLoading, error } = useTerritory({ revalidateOnFocus: false });
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [sortKey, setSortKey] = useState<SortKey>('number_asc');
-
-  const completedTerritories = useMemo(
-    () => sortTerritories(territories.filter(isCompleted), sortKey),
-    [territories, sortKey]
-  );
-
-  const stats = useMemo(() => {
-    const total = territories.length;
-    const completed = territories.filter(isCompleted).length;
-    const incomplete = territories.filter((t) => t.visitStartDate && !t.visitEndDate).length;
-    const ready = total - completed - incomplete;
-    return { total, completed, incomplete, ready };
-  }, [territories]);
-
-  // ── share / export ──
-  const handleShare = async () => {
-    const lines = completedTerritories.map(
-      (t) => `Territorio ${t.number} — ${t.name}\n  Inicio: ${formatDateShort(t.visitStartDate)}\n  Completado: ${formatDateShort(t.visitEndDate)}${t.note ? `\n  Nota: ${t.note}` : ''}`
-    );
-    const header = `📋 REPORTE DE TERRITORIOS COMPLETADOS\n${'─'.repeat(38)}\nTotal completados: ${stats.completed} / ${stats.total}\n${'─'.repeat(38)}\n\n`;
-    const body = lines.join('\n\n');
-    const footer = `\n\n${'─'.repeat(38)}\nGenerado el ${formatDate(new Date())}`;
-
-    try {
-      await Share.share({ message: header + body + footer, title: 'Reporte de Territorios' });
-    } catch (e) {
-      // user cancelled
-    }
-  };
+  const { completedTerritories, leaderNameByGroupId, stats, sortKey, setSortKey, isLoading, error, handleGeneratePDF, isGeneratingPDF, sortOptions } = useReport();
 
   // ── loading / error states ──
   if (isLoading)
@@ -131,16 +45,24 @@ export default function TerritoryReport() {
         <View className="flex-row items-center justify-between">
           <Text className={styles.pageTitle}>Reporte</Text>
           <TouchableOpacity
-            onPress={handleShare}
+            onPress={handleGeneratePDF}
+            disabled={isGeneratingPDF}
             className="rounded-xl bg-purple-100 px-3 py-2 dark:bg-purple-900/40">
             <View className="flex-row items-center gap-1">
-              <Ionicons
-                name="share-outline"
-                size={18}
-                color={isDark ? '#c4b5fd' : '#7c3aed'}
-              />
+              {isGeneratingPDF ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isDark ? '#c4b5fd' : '#7c3aed'}
+                />
+              ) : (
+                <Ionicons
+                  name="document-text-outline"
+                  size={18}
+                  color={isDark ? '#c4b5fd' : '#7c3aed'}
+                />
+              )}
               <Text className="text-sm font-semibold text-purple-700 dark:text-purple-300">
-                Exportar
+                {isGeneratingPDF ? 'Generando...' : 'PDF'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -160,7 +82,7 @@ export default function TerritoryReport() {
         {/* ── Sort bar ── */}
         <View className="mb-3 flex-row items-center gap-2">
           <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">Ordenar:</Text>
-          {SORT_OPTIONS.map((opt) => (
+          {sortOptions.map((opt) => (
             <TouchableOpacity
               key={opt.key}
               onPress={() => setSortKey(opt.key)}
@@ -203,6 +125,7 @@ export default function TerritoryReport() {
               territory={territory}
               index={index}
               isDark={isDark}
+              leaderName={leaderNameByGroupId.get(territory.groupId || '') || '—'}
             />
           ))
         )}
@@ -240,10 +163,12 @@ function TerritoryReportRow({
   territory,
   index,
   isDark,
+  leaderName,
 }: {
   territory: Territory;
   index: number;
   isDark: boolean;
+  leaderName: string;
 }) {
   return (
     <View className="mb-3 overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-black3">
@@ -287,6 +212,20 @@ function TerritoryReportRow({
                 Completado:{' '}
                 <Text className="font-semibold text-green-600 dark:text-green-400">
                   {formatDate(territory.visitEndDate)}
+                </Text>
+              </Text>
+            </View>
+
+            <View className="flex-row items-center gap-1">
+              <Ionicons
+                name="person-outline"
+                size={14}
+                color={isDark ? '#9ca3af' : '#6b7280'}
+              />
+              <Text className="text-xs text-gray-500 dark:text-gray-400">
+                Encargado:{' '}
+                <Text className="font-medium text-gray-700 dark:text-gray-200">
+                  {leaderName}
                 </Text>
               </Text>
             </View>
