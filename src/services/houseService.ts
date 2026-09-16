@@ -11,10 +11,12 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { mutate } from 'swr';
+import { getCurrentCongregationId } from './session';
 
 export type House = {
   id: string;
   territoryId: string;
+  congregationId: string;
   address: string;
   reason: string;
   createdAt: any;
@@ -30,7 +32,12 @@ export const houseService = {
   // Función para obtener houses (compatible con SWR)
   async getHousesByTerritory(territoryId: string) {
     try {
-      const q = query(collection(db, 'avoidHouses'), where('territoryId', '==', territoryId));
+      const congregationId = await getCurrentCongregationId();
+      const q = query(
+        collection(db, 'avoidHouses'),
+        where('territoryId', '==', territoryId),
+        where('congregationId', '==', congregationId)
+      );
       const snapshot = await getDocs(q);
       const houses: House[] = [];
 
@@ -68,8 +75,10 @@ export const houseService = {
     }
 
     try {
+      const congregationId = await getCurrentCongregationId();
       const newHouse = {
         territoryId,
+        congregationId,
         address: address.trim(),
         reason: reason.trim() || 'Sin razón especificada',
         createdAt: new Date(),
@@ -134,30 +143,46 @@ export const houseService = {
   },
 
   subscribeToHousesByTerritory(territoryId: string, callback: (houses: House[]) => void) {
-    const q = query(collection(db, 'avoidHouses'), where('territoryId', '==', territoryId));
+    let unsubscribed = false;
+    let unsubscribeSnapshot: (() => void) | null = null;
 
-    return onSnapshot(q, (snapshot) => {
-      const houses: House[] = [];
-      snapshot.forEach((doc) => {
-        houses.push({
-          id: doc.id,
-          ...doc.data(),
-        } as House);
+    getCurrentCongregationId().then((congregationId) => {
+      if (unsubscribed) return;
+
+      const q = query(
+        collection(db, 'avoidHouses'),
+        where('territoryId', '==', territoryId),
+        where('congregationId', '==', congregationId)
+      );
+
+      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const houses: House[] = [];
+        snapshot.forEach((doc) => {
+          houses.push({
+            id: doc.id,
+            ...doc.data(),
+          } as House);
+        });
+
+        // Ordenar por fecha de creación (más recientes primero)
+        houses.sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return b.createdAt.toDate() - a.createdAt.toDate();
+          }
+          return 0;
+        });
+
+        callback(houses);
+
+        // Actualizar el caché de SWR con los datos en tiempo real
+        mutate(getHousesKey(territoryId), houses, false);
       });
-
-      // Ordenar por fecha de creación (más recientes primero)
-      houses.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toDate() - a.createdAt.toDate();
-        }
-        return 0;
-      });
-
-      callback(houses);
-
-      // Actualizar el caché de SWR con los datos en tiempo real
-      mutate(getHousesKey(territoryId), houses, false);
     });
+
+    return () => {
+      unsubscribed = true;
+      unsubscribeSnapshot?.();
+    };
   },
 
   // Función para revalidar houses de un territorio específico

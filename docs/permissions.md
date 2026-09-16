@@ -229,34 +229,43 @@ const TerritoryActions = ({ territory }) => {
 
 ### Estructura de Rules
 
-**Ubicación:** `firestore.rules` (en raíz del proyecto)
+**Ubicación:** `firestore.rules` (en raíz del proyecto) — este es el archivo real que se publica en Firebase Console, no solo un ejemplo. Además del rol, cada regla verifica que el documento pertenezca a tu misma congregación (`congregationId`) — ver [development-deployment.md](development-deployment.md) sección "Distribución Multi-Congregación" para el detalle de aislamiento.
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Función auxiliar para verificar rol
-    function hasRole(role) {
-      return request.auth.token.role == role;
-    }
 
-    function isUser() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function myData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myCongregationId() {
+      return myData().congregationId;
+    }
+
     function isAdmin() {
-      return hasRole('admin') || hasRole('superadmin');
+      return isSignedIn() && myData().role in ['admin', 'superadmin'];
     }
 
     function isSuperAdmin() {
-      return hasRole('superadmin');
+      return isSignedIn() && myData().role == 'superadmin';
+    }
+
+    function inMyCongregation(data) {
+      return isSignedIn() && data.congregationId == myCongregationId();
     }
 
     // Reglas por colección...
   }
 }
 ```
+
+**Nota importante:** `isAdmin()` y `isSuperAdmin()` leen el rol desde el documento propio en `users` (vía `get()`), no de un custom claim en el token — porque el proyecto no usa Cloud Functions para setear claims. Esto es más simple pero implica un `get()` extra por request; a la escala de una congregación no es un problema de costo/latencia real.
 
 ---
 
@@ -266,82 +275,51 @@ service cloud.firestore {
 
 ```
 match /users/{userId} {
-  // Leer: solo el usuario mismo o admin
-  allow read: if isUser() && (request.auth.uid == userId || isAdmin());
+  // Leer: uno mismo, o admin+ de tu misma congregación
+  allow read: if isSignedIn() && (
+    request.auth.uid == userId ||
+    (isAdmin() && resource.data.congregationId == myCongregationId())
+  );
 
-  // Crear: auth service (backend)
-  allow create: if false;  // Delegado a Firebase Auth + Cloud Functions
+  // Crear tu propio doc al registrarte:
+  // - unirte a una congregación existente -> siempre role 'user'
+  // - fundar una congregación nueva (tú la creaste) -> role 'superadmin'
+  allow create: if isSignedIn() && request.auth.uid == userId && (
+    request.resource.data.role == 'user' ||
+    (request.resource.data.role == 'superadmin' &&
+     get(/databases/$(database)/documents/congregations/$(request.resource.data.congregationId)).data.createdBy == request.auth.uid)
+  );
 
-  // Actualizar: solo el usuario mismo
-  allow update: if request.auth.uid == userId;
+  // Actualizar tus propios datos, sin tocar role ni congregationId
+  allow update: if isSignedIn() && request.auth.uid == userId &&
+    request.resource.data.role == resource.data.role &&
+    request.resource.data.congregationId == resource.data.congregationId;
 
-  // Eliminar: solo superadmin
-  allow delete: if isSuperAdmin();
+  // Cambiar el role de OTRO usuario de tu misma congregación
+  allow update: if isSignedIn() && request.auth.uid != userId &&
+    resource.data.congregationId == myCongregationId() &&
+    request.resource.data.congregationId == resource.data.congregationId && (
+      isSuperAdmin() ||
+      (myData().role == 'admin' && request.resource.data.role == 'admin')
+    );
+
+  allow delete: if isSuperAdmin() && resource.data.congregationId == myCongregationId();
 }
 ```
 
+Nota clave: **nadie puede auto-asignarse un rol distinto de `user`** salvo en el instante de fundar su propia congregación (verificado con `get()` sobre el doc de `congregations`, comparando `createdBy` con el uid actual). Esto es lo que impide la escalación de privilegios que existía antes.
+
 ---
 
-#### Territories
+#### Territories / Groups / AvoidHouses
+
+Mismo patrón en las tres: todo lector debe ser de la misma congregación que el documento; crear/editar requiere admin+; borrar requiere superadmin (avoidHouses también permite al creador editar/borrar lo suyo).
 
 ```
 match /territories/{territoryId} {
-  // Leer: todos los autenticados
-  allow read: if isUser();
-
-  // Crear: solo admin+
-  allow create: if isAdmin() && 
-    request.resource.data.createdBy == request.auth.uid;
-
-  // Actualizar: admin+ o creador
-  allow update: if isAdmin() || 
-    resource.data.createdBy == request.auth.uid;
-
-  // Eliminar: solo superadmin
-  allow delete: if isSuperAdmin();
-}
-```
-
----
-
-#### Groups
-
-```
-match /groups/{groupId} {
-  // Leer: todos los autenticados
-  allow read: if isUser();
-
-  // Crear: solo admin+
-  allow create: if isAdmin();
-
-  // Actualizar: admin+
-  allow update: if isAdmin();
-
-  // Eliminar: solo superadmin
-  allow delete: if isSuperAdmin();
-}
-```
-
----
-
-#### AvoidHouses (casas a evitar)
-
-```
-match /avoidHouses/{houseId} {
-  // Leer: todos los autenticados
-  allow read: if isUser();
-
-  // Crear: cualquier usuario autenticado
-  allow create: if isUser() && 
-    request.resource.data.createdBy == request.auth.uid;
-
-  // Actualizar: creador o admin
-  allow update: if resource.data.createdBy == request.auth.uid || 
-    isAdmin();
-
-  // Eliminar: creador o admin
-  allow delete: if resource.data.createdBy == request.auth.uid || 
-    isAdmin();
+  allow read: if inMyCongregation(resource.data);
+  allow create, update: if isAdmin() && inMyCongregation(request.resource.data);
+  allow delete: if isSuperAdmin() && inMyCongregation(resource.data);
 }
 ```
 
@@ -351,11 +329,14 @@ match /avoidHouses/{houseId} {
 
 ```
 match /congregations/{congId} {
-  // Leer: todos los autenticados
-  allow read: if isUser();
+  // Cualquiera logueado puede leer (necesario para buscar por nombre al registrarse)
+  allow read: if isSignedIn();
 
-  // Escribir: solo superadmin
-  allow write: if isSuperAdmin();
+  // Fundar una congregación nueva: cualquiera logueado, siempre como su creador
+  allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+
+  // Editar/borrar: solo el superadmin de esa misma congregación
+  allow update, delete: if isSuperAdmin() && congId == myCongregationId();
 }
 ```
 

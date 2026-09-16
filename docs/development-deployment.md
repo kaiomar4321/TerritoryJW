@@ -576,36 +576,35 @@ if (isOutdatedVersion(appVersion, MIN_VERSION_REQUIRED)) {
 
 ## 🔟 Distribución Multi-Congregación
 
-Cada congregación corre su **propio proyecto Firebase** (Firestore/Auth completamente aislados entre congregaciones) y **su propio build**. No hay coordinación central: quien quiera su instancia, la monta siguiendo estos pasos.
+Un solo proyecto Firebase, un solo build para todos. Cada congregación es un **documento** en la colección `congregations`, y todos sus datos (`territories`, `groups`, `avoidHouses`, `users`) llevan un campo `congregationId` que los aísla del resto — reforzado en `firestore.rules`, no solo en la UI.
 
-### Config que varía por congregación
+### Cómo se da de alta una congregación nueva
 
-| Qué | Dónde vive | Se versiona en git |
+No hay panel de administración para esto — pasa solo con el flujo de registro normal (`app/(auth)/register.tsx`):
+
+1. El usuario pone un **nombre de congregación** al registrarse.
+2. `congregationService.getByName(nombre)` busca si ya existe:
+   - **Existe** → el usuario nuevo se une con `role: 'user'`.
+   - **No existe** → se crea el documento en `congregations` (`createdBy` = su uid) y el usuario nace con `role: 'superadmin'` de esa congregación.
+3. Ese primer usuario (superadmin) es quien luego promueve a otros dentro de su misma congregación (`userService.changeUserRole`), desde la pantalla de admin de usuarios.
+
+No se necesita tocar Firebase Console, `.env`, ni hacer un build nuevo para dar de alta una congregación — es puramente un flujo dentro de la app.
+
+### Aislamiento (`congregationId`)
+
+| Colección | Campo | Quién lo escribe |
 |---|---|---|
-| Credenciales Firebase (Auth/Firestore) | `.env` → `EXPO_PUBLIC_FIREBASE_*` | ❌ (solo `.env.example`) |
-| Región inicial del mapa | `.env` → `EXPO_PUBLIC_INITIAL_*` | ❌ (solo `.env.example`) |
-| Google Maps API keys | `.env` → `GOOGLE_MAPS_API_KEY_*` (leídas en `app.config.js`) | ❌ (solo `.env.example`) |
-| `google-services.json` / `GoogleService-Info.plist` | Raíz del proyecto | ❌ (gitignored) |
+| `users` | `congregationId` | Se fija una sola vez al registrarse (`useUser.registerUser`); las reglas impiden cambiarlo después |
+| `territories` | `congregationId` | `territoryService.saveTerritory` (lo resuelve del usuario actual vía `src/services/session.ts`) |
+| `groups` | `congregationId` | `groupService.saveGroup` (igual, vía `session.ts`) |
+| `avoidHouses` | `congregationId` | `houseService.addHouse` (igual) |
 
-### Pasos para levantar una instancia nueva
-
-1. **Clonar el repo** y `npm install`.
-2. **Crear un proyecto Firebase propio** (console.firebase.google.com), habilitar **Authentication** (Email/Password) y **Firestore**.
-3. Registrar una app **Web** dentro del proyecto Firebase → copiar el config a tu `.env` (`cp .env.example .env` y llenar los `EXPO_PUBLIC_FIREBASE_*`).
-4. Registrar apps **Android** e **iOS** en el mismo proyecto Firebase (puede ser con el mismo `com.miapp.territorios` si no vas a publicar en la store, o tu propio bundle id) y descargar:
-   - `google-services.json` → colocar en la raíz del proyecto.
-   - `GoogleService-Info.plist` → colocar en la raíz del proyecto.
-   (Estos dos solo son requeridos porque el plugin de `@react-native-firebase` los necesita para compilar; el proyecto no usa RNFirebase en el código todavía).
-5. **Copiar `firestore.rules`** al proyecto nuevo (Firebase Console → Firestore → Rules, o `firebase deploy --only firestore:rules` apuntando a tu proyecto).
-6. **Sacar tus propias Google Maps API keys** (Google Cloud Console, una para iOS y otra para Android) y ponerlas en `.env` como `GOOGLE_MAPS_API_KEY_IOS` / `GOOGLE_MAPS_API_KEY_ANDROID`.
-7. **Poner la región inicial** de tu congregación en `.env` (`EXPO_PUBLIC_INITIAL_LATITUDE/LONGITUDE/...`).
-8. `eas login` con tu **propia cuenta EAS** (no la del proyecto original) y `eas build:configure` para generar tu propio `projectId` en `extra.eas` dentro de `app.config.js`.
-9. `eas build --profile preview` para probar, luego `eas build --profile production` para el build final.
+Todas las queries de lectura (`syncAll`, `getRemoteGroups`, `getHousesByTerritory`, `getAllUsers`) filtran por `congregationId` — es requisito de Firestore: una query de tipo "list" sin ese `where` explícito es **rechazada** por las reglas (no basta con que el rule lo permita por documento).
 
 ### Notas
 
-- Si quieres publicar cada instancia como app separada en las stores, cambia `ios.bundleIdentifier` / `android.package` en `app.config.js` antes del build (cada bundle id es una app distinta ante Apple/Google).
-- Si prefieres solo distribución interna (compartir el `.apk`/link de instalación con la congregación), no hace falta cambiar el bundle id ni pasar por review de las stores — usa el perfil `preview` o `adhoc` de `eas.json`.
+- Si dos personas escriben el mismo nombre de congregación con mayúsculas/espacios distintos ("Centro" vs "centro "), `getByName` los trata como congregaciones diferentes — no hay normalización todavía.
+- El caché offline (`AsyncStorage` / claves de SWR como `TERRITORIES_KEY`) sigue siendo global por dispositivo, no por congregación. En un dispositivo compartido entre cuentas de congregaciones distintas puede mostrar momentáneamente datos viejos de la sesión anterior hasta que sincroniza. No es un hueco de seguridad (las reglas igual bloquean la escritura/lectura real), pero sí una mejora pendiente si eso llega a pasar en la práctica.
 
 ---
 

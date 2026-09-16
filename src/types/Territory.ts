@@ -7,6 +7,7 @@ export type Territory = {
   id: string;
   name: string;
   createdBy: string;
+  congregationId: string;
   coordinates: Coordinate[];
   color: string;
   createdAt: any;

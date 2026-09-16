@@ -19,6 +19,7 @@ import { useOfflineSWR } from '~/hooks/useOfflineSWR';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mutate } from 'swr';
 import { authService } from '~/services/authService'; // ✅ importamos tu servicio
+import { congregationService } from '~/services/congregationService';
 
 const db = getFirestore();
 
@@ -50,16 +51,17 @@ export const useUser = () => {
     { ttl: 1000 * 60 * 5 }
   );
 
-  // 🔹 Registro con rol
+  // 🔹 Registro: une a una congregación existente (role 'user'),
+  // o si el nombre no existe, la crea y el usuario queda como su superadmin
   const registerUser = useCallback(
     async (
       email: string,
       password: string,
       confirmPassword: string,
       displayName: string,
-      role: 'user' | 'admin' | 'superadmin' = 'user' // 👈 nuevo parámetro
+      congregationName: string
     ) => {
-      if (!displayName || !email || !password || !confirmPassword) {
+      if (!displayName || !email || !password || !confirmPassword || !congregationName) {
         Alert.alert('Error', 'Por favor completa todos los campos');
         return;
       }
@@ -75,24 +77,49 @@ export const useUser = () => {
 
         await updateProfile(user, { displayName });
 
+        const trimmedName = congregationName.trim();
+        const existing = await congregationService.getByName(trimmedName);
+
+        let congregationId: string;
+        let role: 'user' | 'superadmin';
+
+        if (existing) {
+          congregationId = existing.id;
+          role = 'user';
+        } else {
+          const newCongregation = await congregationService.create({
+            name: trimmedName,
+            createdBy: user.uid,
+            createdAt: Date.now(),
+          });
+          congregationId = newCongregation.id;
+          role = 'superadmin';
+        }
+
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           email,
           displayName,
           role,
+          congregationId,
           createdAt: new Date(),
         });
 
         await AsyncStorage.setItem(
           `user/${user.uid}`,
           JSON.stringify({
-            data: { uid: user.uid, email, displayName, role },
+            data: { uid: user.uid, email, displayName, role, congregationId },
             timestamp: Date.now(),
           })
         );
 
         mutate(`user/${user.uid}`);
-        Alert.alert('Éxito', `Cuenta creada correctamente como ${role}`);
+        Alert.alert(
+          'Éxito',
+          existing
+            ? `Cuenta creada, te uniste a "${trimmedName}"`
+            : `Cuenta creada, fundaste la congregación "${trimmedName}" y eres su superadmin`
+        );
       } catch (error: any) {
         console.error('Error al crear cuenta:', error);
 

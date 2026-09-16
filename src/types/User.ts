@@ -5,5 +5,6 @@ export interface User {
   displayName: string;
   photoURL?: string;
   role: 'user' | 'admin' | 'superadmin';
+  congregationId: string;
   createdAt?: string | number;
 }

@@ -62,6 +62,7 @@ yarn-error.*
 # Firebase secrets (cada congregación usa las suyas, ver .env.example)
 google-services.json
 GoogleService-Info.plist
+scripts/serviceAccountKey.json
 
 # typescript
 *.tsbuildinfo

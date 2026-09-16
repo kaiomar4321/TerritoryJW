@@ -68,6 +68,7 @@ Colecciones, relaciones y estructura de datos.
 | `displayName` | string | ✅ | Nombre completo |
 | `photoURL` | string | ❌ | URL de foto de perfil |
 | `role` | 'user' \| 'admin' \| 'superadmin' | ✅ | Nivel de acceso |
+| `congregationId` | string | ✅ | FK a `congregations` — fijo desde el registro, no se puede cambiar |
 | `createdAt` | number \| string | ✅ | Timestamp de creación |
 
 **Service:** `userService.ts`
@@ -79,6 +80,7 @@ Colecciones, relaciones y estructura de datos.
 | Campo | Tipo | Req | Descripción |
 |---|---|---|---|
 | `id` | string | ✅ | Document ID autogenerado (PK) |
+| `congregationId` | string | ✅ | FK a `congregations` — aísla el territorio a su congregación |
 | `name` | string | ✅ | Nombre del territorio |
 | `number` | number | ✅ | Número de identificación |
 | `coordinates` | Array<{lat, lng}> | ✅ | Puntos del polígono (mín 3) |
@@ -103,6 +105,7 @@ Colecciones, relaciones y estructura de datos.
 | Campo | Tipo | Req | Descripción |
 |---|---|---|---|
 | `id` | string | ✅ | Document ID autogenerado (PK) |
+| `congregationId` | string | ✅ | FK a `congregations` |
 | `number` | number | ✅ | Número del grupo |
 | `leaderId` | string | ✅ | UID del líder del grupo |
 | `territoryIds` | Array<string> | ✅ | FK array a territories |
@@ -119,6 +122,7 @@ Colecciones, relaciones y estructura de datos.
 |---|---|---|---|
 | `id` | string | ✅ | Document ID autogenerado (PK) |
 | `territoryId` | string | ✅ | FK a territories |
+| `congregationId` | string | ✅ | FK a `congregations` |
 | `address` | string | ✅ | Dirección completa |
 | `reason` | string | ✅ | Motivo de restricción |
 | `coordinates` | {lat, lng} | ✅ | Ubicación GPS exacta |
@@ -135,7 +139,8 @@ Colecciones, relaciones y estructura de datos.
 | Campo | Tipo | Req | Descripción |
 |---|---|---|---|
 | `id` | string | ✅ | Document ID autogenerado (PK) |
-| `name` | string | ✅ | Nombre de la congregación |
+| `name` | string | ✅ | Nombre de la congregación (único de facto — se busca por nombre al registrarse) |
+| `createdBy` | string | ✅ | UID de quien la fundó — nace como su `superadmin` |
 | `location` | string | ❌ | Ubicación / dirección |
 | `createdAt` | number | ✅ | Timestamp de creación |
 
@@ -171,13 +176,14 @@ Colecciones, relaciones y estructura de datos.
 ## Índices Recomendados
 
 **Simples (auto-creados):**
-- `users`: email, role
-- `territories`: name, number, groupId, createdBy
-- `groups`: number, leaderId
-- `avoidHouses`: territoryId, createdAt
+- `users`: email, role, congregationId
+- `territories`: name, number, groupId, createdBy, congregationId
+- `groups`: number, leaderId, congregationId
+- `avoidHouses`: territoryId, createdAt, congregationId
 - `congregations`: name
 
-**Compuestos (si hay queries complejas):**
-- `territories`: (createdBy, lastModified)
+**Compuestos (necesarios — todas las queries de lista filtran primero por `congregationId`):**
+- `avoidHouses`: (territoryId, congregationId) — usado por `getHousesByTerritory`
+- `territories`: (congregationId, lastModified)
 - `groups`: (leaderId, createdAt)
 - `avoidHouses`: (territoryId, createdAt)

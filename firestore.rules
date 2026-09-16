@@ -6,62 +6,88 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function role() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function myData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myCongregationId() {
+      return myData().congregationId;
     }
 
     function isAdmin() {
-      return isSignedIn() && role() in ['admin', 'superadmin'];
+      return isSignedIn() && myData().role in ['admin', 'superadmin'];
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && role() == 'superadmin';
+      return isSignedIn() && myData().role == 'superadmin';
+    }
+
+    function inMyCongregation(data) {
+      return isSignedIn() && data.congregationId == myCongregationId();
     }
 
     match /territories/{territoryId} {
-      allow read: if isSignedIn();
-      allow create, update: if isAdmin();
-      allow delete: if isSuperAdmin();
+      allow read: if inMyCongregation(resource.data);
+      allow create, update: if isAdmin() && inMyCongregation(request.resource.data);
+      allow delete: if isSuperAdmin() && inMyCongregation(resource.data);
     }
 
     match /groups/{groupId} {
-      allow read: if isSignedIn();
-      allow create, update: if isAdmin();
-      allow delete: if isSuperAdmin();
+      allow read: if inMyCongregation(resource.data);
+      allow create, update: if isAdmin() && inMyCongregation(request.resource.data);
+      allow delete: if isSuperAdmin() && inMyCongregation(resource.data);
     }
 
     match /avoidHouses/{houseId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isSignedIn() &&
+      allow read: if inMyCongregation(resource.data);
+      allow create: if isSignedIn() && inMyCongregation(request.resource.data);
+      allow update, delete: if inMyCongregation(resource.data) &&
         (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
     match /users/{userId} {
-      // Leer: uno mismo o admin+
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-
-      // Crear: solo tu propio doc, y siempre con role 'user'
-      // (nadie se auto-asigna admin/superadmin al registrarse)
-      allow create: if isSignedIn() && request.auth.uid == userId &&
-        request.resource.data.role == 'user';
-
-      // Actualizar tus propios datos, pero sin tocar tu role
-      allow update: if isSignedIn() && request.auth.uid == userId &&
-        request.resource.data.role == resource.data.role;
-
-      // Cambiar el role de OTRO usuario: admin solo puede promover a 'admin';
-      // superadmin puede asignar cualquier role
-      allow update: if isSignedIn() && request.auth.uid != userId && (
-        isSuperAdmin() ||
-        (role() == 'admin' && request.resource.data.role == 'admin')
+      // Leer: uno mismo, o admin+ de tu misma congregación
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        (isAdmin() && resource.data.congregationId == myCongregationId())
       );
 
-      allow delete: if isSuperAdmin();
+      // Crear tu propio doc al registrarte:
+      // - unirte a una congregación existente -> siempre role 'user'
+      // - fundar una congregación nueva (tú la creaste) -> role 'superadmin'
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        request.resource.data.role == 'user' ||
+        (request.resource.data.role == 'superadmin' &&
+         get(/databases/$(database)/documents/congregations/$(request.resource.data.congregationId)).data.createdBy == request.auth.uid)
+      );
+
+      // Actualizar tus propios datos, sin tocar role ni congregationId
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.congregationId == resource.data.congregationId;
+
+      // Cambiar el role de OTRO usuario de tu misma congregación:
+      // admin solo puede promover a 'admin'; superadmin cualquier cosa.
+      // congregationId nunca cambia en este camino.
+      allow update: if isSignedIn() && request.auth.uid != userId &&
+        resource.data.congregationId == myCongregationId() &&
+        request.resource.data.congregationId == resource.data.congregationId && (
+          isSuperAdmin() ||
+          (myData().role == 'admin' && request.resource.data.role == 'admin')
+        );
+
+      allow delete: if isSuperAdmin() && resource.data.congregationId == myCongregationId();
     }
 
     match /congregations/{congId} {
+      // Cualquiera logueado puede leer (necesario para buscar por nombre al registrarse/unirse)
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
+
+      // Fundar una congregación nueva: cualquiera logueado, siempre como su creador
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+
+      // Editar/borrar: solo el superadmin de esa misma congregación
+      allow update, delete: if isSuperAdmin() && congId == myCongregationId();
     }
   }
 }

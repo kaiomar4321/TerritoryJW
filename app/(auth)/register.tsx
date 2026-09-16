@@ -19,10 +19,11 @@ export default function Register() {
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [congregationName, setCongregationName] = useState('');
   const [loading, setLoading] = useState(false);
 const {registerUser} = useUser()
   const handleRegister = async () => {
-    await registerUser(email, password, confirmPassword, displayName)
+    await registerUser(email, password, confirmPassword, displayName, congregationName)
   };
 
   return (
@@ -65,6 +66,16 @@ const {registerUser} = useUser()
                   keyboardType="email-address"
                   autoComplete="email"
                 />
+                <CustomTextInput
+                  iconLeft="business-outline"
+                  placeholder="Nombre de tu congregación"
+                  value={congregationName}
+                  onChangeText={setCongregationName}
+                  autoCapitalize="words"
+                />
+                <Text className="text-xs text-gray-500 dark:text-gray-400 -mt-1.5">
+                  Si ya existe, te unes a ella. Si no, la creas y quedas como su administrador principal.
+                </Text>
                 <CustomTextInput
                   iconLeft="lock-closed-outline"
                   placeholder="Contraseña"

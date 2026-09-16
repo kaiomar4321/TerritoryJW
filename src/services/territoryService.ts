@@ -1,9 +1,10 @@
 import { db } from "../config/firebase";
-import { collection, addDoc, query, onSnapshot, doc, updateDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { mutate } from "swr";
 import { Territory } from "~/types/Territory";
 import { territoryUtils } from "~/utils/territoryUtils";
 import { localDB } from "./localDB";
+import { getCurrentCongregationId } from "./session";
 import NetInfo from "@react-native-community/netinfo";
 
 export const TERRITORIES_KEY = "firestore:territories";
@@ -22,9 +23,12 @@ export const territoryService = {
       throw new Error("No hay conexión a internet");
     }
 
+    const congregationId = await getCurrentCongregationId();
+
     const newTerritory: Omit<Territory, "id"> = {
       coordinates,
       createdBy: userId,
+      congregationId,
       createdAt: new Date().toISOString(),
       color: "rgba(255, 0, 0, 0.8)",
       name: "Territorio Nuevo",
@@ -108,7 +112,9 @@ export const territoryService = {
     }
 
     // 2. bajar desde firebase
-    const snapshot = await getDocs(collection(db, "territories"));
+    const congregationId = await getCurrentCongregationId();
+    const q = query(collection(db, "territories"), where("congregationId", "==", congregationId));
+    const snapshot = await getDocs(q);
     const remote = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Territory[];
     console.log("⬇️ Territorios cargados desde Firestore:", remote.length);
     await localDB.saveCollection(LOCAL_STORAGE_KEY, remote);

@@ -1,7 +1,8 @@
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '~/config/firebase';
 import { localDB } from './localDB';
 import { Group } from '~/types/Group';
+import { getCurrentCongregationId } from './session';
 
 export const GROUPS_KEY = 'groups';
 
@@ -18,7 +19,9 @@ export const groupService = {
 
   // 🔹 Obtener todos los grupos de Firestore
   async getRemoteGroups(): Promise<Group[]> {
-    const snapshot = await getDocs(collection(db, 'groups'));
+    const congregationId = await getCurrentCongregationId();
+    const q = query(collection(db, 'groups'), where('congregationId', '==', congregationId));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(
       (docSnap) => ({ id: docSnap.id, ...docSnap.data() } as Group)
     );
@@ -41,8 +44,9 @@ export const groupService = {
   },
 
   // 🔹 Crear grupo
-  async saveGroup(group: Omit<Group, 'id' | 'updatedAt'>): Promise<Group> {
-    const data = { ...group, updatedAt: Date.now().toString() };
+  async saveGroup(group: Omit<Group, 'id' | 'updatedAt' | 'congregationId'>): Promise<Group> {
+    const congregationId = await getCurrentCongregationId();
+    const data = { ...group, congregationId, updatedAt: Date.now().toString() };
     const ref = await addDoc(collection(db, 'groups'), data);
     const newGroup = { id: ref.id, ...data };
 

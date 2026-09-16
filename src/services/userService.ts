@@ -1,5 +1,6 @@
 import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { auth } from '~/config/firebase';
+import { getCurrentCongregationId } from './session';
 
 const db = getFirestore();
 
@@ -21,29 +22,16 @@ export const userService = {
       throw new Error(`Acceso denegado. Tu rol es: "${currentRole}". Se requiere: admin o superadmin`);
     }
 
-    // Obtener todos los usuarios
-    try {
-      const usersCollection = collection(db, 'users');
-      const querySnapshot = await getDocs(usersCollection);
-      const usersList = querySnapshot.docs.map((d) => ({
-        uid: d.id,
-        ...d.data(),
-      }));
-      return usersList;
-    } catch (error: any) {
-      // Si Firestore rechaza la query, intenta con un query más permisivo
-      console.warn('Query sin filtro rechazada, reintentando...', error.message);
-      
-      // Fallback: obtener con una condición que sea siempre verdadera
-      const usersCollection = collection(db, 'users');
-      const q = query(usersCollection, where('__name__', '>=', ''));
-      const querySnapshot = await getDocs(q);
-      const usersList = querySnapshot.docs.map((d) => ({
-        uid: d.id,
-        ...d.data(),
-      }));
-      return usersList;
-    }
+    // Obtener usuarios de tu propia congregación
+    const congregationId = await getCurrentCongregationId();
+    const usersCollection = collection(db, 'users');
+    const q = query(usersCollection, where('congregationId', '==', congregationId));
+    const querySnapshot = await getDocs(q);
+    const usersList = querySnapshot.docs.map((d) => ({
+      uid: d.id,
+      ...d.data(),
+    }));
+    return usersList;
   },
 
   /**
@@ -67,6 +55,11 @@ export const userService = {
     }
 
     const targetRef = doc(db, 'users', targetUserId);
+    const targetSnap = await getDoc(targetRef);
+    if (targetSnap.data()?.congregationId !== currentSnap.data()?.congregationId) {
+      throw new Error('Ese usuario no pertenece a tu congregación');
+    }
+
     // Para eliminar, necesitaremos usar Firebase Admin SDK o una Cloud Function
     // Por ahora, marcamos como inactivo
     await updateDoc(targetRef, { isActive: false, deletedAt: new Date() });
@@ -98,6 +91,11 @@ export const userService = {
     }
 
     const targetRef = doc(db, 'users', targetUserId);
+    const targetSnap = await getDoc(targetRef);
+    if (targetSnap.data()?.congregationId !== currentSnap.data()?.congregationId) {
+      throw new Error('Ese usuario no pertenece a tu congregación');
+    }
+
     await updateDoc(targetRef, { role: newRole });
 
     return { message: `Rol actualizado a ${newRole}` };
