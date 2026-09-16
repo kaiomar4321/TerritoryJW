@@ -166,7 +166,8 @@ npm start
 
 ### Archivos de Configuración Clave
 
-- **app.json** — Configuración de Expo (permisos, versión, nombre, etc.)
+- **app.config.js** — Configuración de Expo (permisos, versión, nombre, etc.); lee Maps API keys de `.env`
+- **.env** — Credenciales Firebase, región inicial del mapa y Maps API keys (por congregación, no se commitea — ver [docs/development-deployment.md](docs/development-deployment.md) sección "Distribución Multi-Congregación")
 - **firestore.rules** — Reglas de seguridad de Firestore
 - **eas.json** — Configuración de builds y deployment
 - **.env.example** — Plantilla de variables de ambiente (copiar a `.env`)

@@ -18,6 +18,12 @@ import FilterButtons from 'components/FilterButtons';
 import ThemedText from 'components/ThemedText';
 import TerritoryPolygons from 'components/Map/TerritoryPolygons';
 
+const INITIAL_REGION = {
+  latitude: Number(process.env.EXPO_PUBLIC_INITIAL_LATITUDE),
+  longitude: Number(process.env.EXPO_PUBLIC_INITIAL_LONGITUDE),
+  latitudeDelta: Number(process.env.EXPO_PUBLIC_INITIAL_LATITUDE_DELTA),
+  longitudeDelta: Number(process.env.EXPO_PUBLIC_INITIAL_LONGITUDE_DELTA),
+};
 
 export default function TabIndex() {
   const { location, getLocation, focusOnTerritory, mapRef, getTerritoriesInViewport, handleRegionChange } = useLocation();
@@ -102,12 +108,7 @@ export default function TabIndex() {
           style={{ flex: 1 }}
           removeClippedSubviews={true}
           
-          initialRegion={{
-            latitude: 19.513628294348678,
-            longitude: -101.60850390264007,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
+          initialRegion={INITIAL_REGION}
           onRegionChangeComplete={handleRegionChange}
           onPress={(e) => {
             if (!isAddingHouse) {

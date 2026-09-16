@@ -574,6 +574,41 @@ if (isOutdatedVersion(appVersion, MIN_VERSION_REQUIRED)) {
 
 ---
 
+## 🔟 Distribución Multi-Congregación
+
+Cada congregación corre su **propio proyecto Firebase** (Firestore/Auth completamente aislados entre congregaciones) y **su propio build**. No hay coordinación central: quien quiera su instancia, la monta siguiendo estos pasos.
+
+### Config que varía por congregación
+
+| Qué | Dónde vive | Se versiona en git |
+|---|---|---|
+| Credenciales Firebase (Auth/Firestore) | `.env` → `EXPO_PUBLIC_FIREBASE_*` | ❌ (solo `.env.example`) |
+| Región inicial del mapa | `.env` → `EXPO_PUBLIC_INITIAL_*` | ❌ (solo `.env.example`) |
+| Google Maps API keys | `.env` → `GOOGLE_MAPS_API_KEY_*` (leídas en `app.config.js`) | ❌ (solo `.env.example`) |
+| `google-services.json` / `GoogleService-Info.plist` | Raíz del proyecto | ❌ (gitignored) |
+
+### Pasos para levantar una instancia nueva
+
+1. **Clonar el repo** y `npm install`.
+2. **Crear un proyecto Firebase propio** (console.firebase.google.com), habilitar **Authentication** (Email/Password) y **Firestore**.
+3. Registrar una app **Web** dentro del proyecto Firebase → copiar el config a tu `.env` (`cp .env.example .env` y llenar los `EXPO_PUBLIC_FIREBASE_*`).
+4. Registrar apps **Android** e **iOS** en el mismo proyecto Firebase (puede ser con el mismo `com.miapp.territorios` si no vas a publicar en la store, o tu propio bundle id) y descargar:
+   - `google-services.json` → colocar en la raíz del proyecto.
+   - `GoogleService-Info.plist` → colocar en la raíz del proyecto.
+   (Estos dos solo son requeridos porque el plugin de `@react-native-firebase` los necesita para compilar; el proyecto no usa RNFirebase en el código todavía).
+5. **Copiar `firestore.rules`** al proyecto nuevo (Firebase Console → Firestore → Rules, o `firebase deploy --only firestore:rules` apuntando a tu proyecto).
+6. **Sacar tus propias Google Maps API keys** (Google Cloud Console, una para iOS y otra para Android) y ponerlas en `.env` como `GOOGLE_MAPS_API_KEY_IOS` / `GOOGLE_MAPS_API_KEY_ANDROID`.
+7. **Poner la región inicial** de tu congregación en `.env` (`EXPO_PUBLIC_INITIAL_LATITUDE/LONGITUDE/...`).
+8. `eas login` con tu **propia cuenta EAS** (no la del proyecto original) y `eas build:configure` para generar tu propio `projectId` en `extra.eas` dentro de `app.config.js`.
+9. `eas build --profile preview` para probar, luego `eas build --profile production` para el build final.
+
+### Notas
+
+- Si quieres publicar cada instancia como app separada en las stores, cambia `ios.bundleIdentifier` / `android.package` en `app.config.js` antes del build (cada bundle id es una app distinta ante Apple/Google).
+- Si prefieres solo distribución interna (compartir el `.apk`/link de instalación con la congregación), no hace falta cambiar el bundle id ni pasar por review de las stores — usa el perfil `preview` o `adhoc` de `eas.json`.
+
+---
+
 ## Checklist Final
 
 **Antes de ir a Producción:**
