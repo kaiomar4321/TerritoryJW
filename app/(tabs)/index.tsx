@@ -27,7 +27,7 @@ const INITIAL_REGION = {
 };
 
 export default function TabIndex() {
-  const { location, getLocation, focusOnTerritory, mapRef, getTerritoriesInViewport, handleRegionChange } = useLocation();
+  const { location, getLocation, focusOnTerritory, mapRef, subscribeRegion, getRegion, handleRegionChange } = useLocation();
   const { territoryId } = useLocalSearchParams();
   const {
     filteredTerritories,
@@ -69,11 +69,6 @@ export default function TabIndex() {
     }
     return INITIAL_REGION;
   }, [congregation]);
-
-  // 🔍 Calcular territorios visibles en el viewport
-  const territoriesInViewport = useMemo(() => {
-    return getTerritoriesInViewport(filteredTerritories);
-  }, [filteredTerritories, getTerritoriesInViewport]);
 
   // ⚡ Memoizar callbacks para evitar re-creates innecesarios
   const handleTerritoryPress = useCallback((territory: Territory) => {
@@ -147,7 +142,10 @@ export default function TabIndex() {
 
           {/* Territorios */}
           <TerritoryPolygons
-            territories={territoriesInViewport}
+            territories={filteredTerritories}
+            subscribeRegion={subscribeRegion}
+            getRegion={getRegion}
+            fallbackRegion={initialRegion}
             selectedTerritory={selectedTerritory}
             onTerritoryPress={handleTerritoryPress}
             isAddingHouse={isAddingHouse}

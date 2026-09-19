@@ -5,7 +5,10 @@ import { Territory } from '~/types/Territory';
 
 export const useLocation = () => {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+  // La región vive en un ref con suscriptores, no en estado: mover el mapa no
+  // debe re-renderizar la pantalla completa, solo a quien la necesita.
+  const regionRef = useRef<Region | null>(null);
+  const regionListeners = useRef(new Set<() => void>());
   const mapRef = useRef<MapView | null>(null);
 
   const getLocation = async () => {
@@ -62,54 +65,32 @@ export const useLocation = () => {
     );
   };
 
-  // 🔍 Calcular si un territorio está dentro del viewport actual
-  const getTerritoriesInViewport = useCallback(
-    (territories: Territory[]): Territory[] => {
-      if (!mapRegion) return territories;
-
-      const latDelta = mapRegion.latitudeDelta;
-      const lngDelta = mapRegion.longitudeDelta;
-
-      // Buffer: mostrar territorios un poco fuera de pantalla también
-      const latBuffer = latDelta * 0.3;
-      const lngBuffer = lngDelta * 0.3;
-
-      const minLat = mapRegion.latitude - latDelta / 2 - latBuffer;
-      const maxLat = mapRegion.latitude + latDelta / 2 + latBuffer;
-      const minLng = mapRegion.longitude - lngDelta / 2 - lngBuffer;
-      const maxLng = mapRegion.longitude + lngDelta / 2 + lngBuffer;
-
-      return territories.filter((territory) => {
-        if (!territory?.coordinates?.length) return false;
-
-        // Verificar si ALGUNA coordenada está en el viewport
-        const inBounds = territory.coordinates.some((coord) => {
-          const latOk = coord.latitude >= minLat && coord.latitude <= maxLat;
-          const lonOk = coord.longitude >= minLng && coord.longitude <= maxLng;
-          return latOk && lonOk;
-        });
-
-        return inBounds;
-      });
-    },
-    [mapRegion]
-  );
-
+  // Se llama al TERMINAR de mover el mapa (onRegionChangeComplete), no en cada frame
   const handleRegionChange = useCallback((region: Region) => {
-    setMapRegion(region);
+    regionRef.current = region;
+    regionListeners.current.forEach((listener) => listener());
   }, []);
+
+  const subscribeRegion = useCallback((listener: () => void) => {
+    regionListeners.current.add(listener);
+    return () => {
+      regionListeners.current.delete(listener);
+    };
+  }, []);
+
+  const getRegion = useCallback(() => regionRef.current, []);
 
   return {
     location,
     setLocation,
     mapRef,
-    mapRegion,
+    subscribeRegion,
+    getRegion,
     setMapRef: (ref: MapView) => {
       mapRef.current = ref;
     },
     getLocation,
     focusOnTerritory,
-    getTerritoriesInViewport,
     handleRegionChange,
   };
 };
