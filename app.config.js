@@ -44,7 +44,8 @@ module.exports = {
     ],
     ios: {
       bundleIdentifier: 'com.miapp.territorios',
-      googleServicesFile: './GoogleService-Info.plist',
+      // En EAS, el archivo llega como variable de tipo file (los locales están en .gitignore)
+      googleServicesFile: process.env.GOOGLE_SERVICES_PLIST ?? './GoogleService-Info.plist',
       supportsTablet: true,
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS,
@@ -55,7 +56,7 @@ module.exports = {
     },
     android: {
       package: 'com.miapp.territorios',
-      googleServicesFile: './google-services.json',
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
       permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION'],
       config: {
         googleMaps: {

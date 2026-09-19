@@ -5,6 +5,7 @@
   },
   "build": {
     "adhoc": {
+      "environment": "production",
       "distribution": "internal",
       "ios": {
         "simulator": false
