@@ -474,6 +474,18 @@ it('user no puede eliminar territorio', async () => {
 
 ---
 
+## Ventana de gracia (apps viejas sin `congregationId`)
+
+Mientras la gente actualiza desde una versión anterior a la separación por congregaciones, `firestore.rules` incluye una función `duringGracePeriod()` (corta hasta una fecha fija) que:
+- Permite `list` sin filtro por `congregationId` (lo que hacían las queries viejas).
+- Permite `create` en `territories`/`groups`/`avoidHouses` sin el campo `congregationId` (esos documentos quedan sin congregación asignada — hay que etiquetarlos a mano después, igual que se hizo con `scripts/migrate-congregation.js`).
+
+**Registrar visita ya no requiere ser admin**: la regla de `update` en `territories` deja pasar a cualquier usuario de la congregación si los únicos campos que cambian son `visitStartDate`, `visitEndDate`, `note`, `couples`, `hours` — cualquier otro campo (nombre, color, `groupId`, coordenadas) sigue exigiendo admin+.
+
+**Pendiente:** una vez que todos hayan actualizado, borrar `duringGracePeriod()` y los `|| duringGracePeriod()` que la usan en `firestore.rules`, y volver a publicar.
+
+---
+
 ## Checklist de Seguridad
 
 - ✅ **Cliente:** Validar permisos con `usePermissions()` antes de mostrar botones

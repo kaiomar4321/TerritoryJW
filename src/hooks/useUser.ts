@@ -19,7 +19,6 @@ import { useOfflineSWR } from '~/hooks/useOfflineSWR';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mutate } from 'swr';
 import { authService } from '~/services/authService'; // ✅ importamos tu servicio
-import { congregationService } from '~/services/congregationService';
 
 const db = getFirestore();
 
@@ -45,23 +44,23 @@ export const useUser = () => {
           photoURL: auth.currentUser?.photoURL || '',
           email: auth.currentUser?.email || '',
           role,
+          congregationId: undefined as string | undefined,
         };
       }
     },
     { ttl: 1000 * 60 * 5 }
   );
 
-  // 🔹 Registro: une a una congregación existente (role 'user'),
-  // o si el nombre no existe, la crea y el usuario queda como su superadmin
+  // 🔹 Registro: siempre role 'user', sin congregación. La congregación se
+  // elige después en la pantalla /select-congregation.
   const registerUser = useCallback(
     async (
       email: string,
       password: string,
       confirmPassword: string,
-      displayName: string,
-      congregationName: string
+      displayName: string
     ) => {
-      if (!displayName || !email || !password || !confirmPassword || !congregationName) {
+      if (!displayName || !email || !password || !confirmPassword) {
         Alert.alert('Error', 'Por favor completa todos los campos');
         return;
       }
@@ -77,49 +76,26 @@ export const useUser = () => {
 
         await updateProfile(user, { displayName });
 
-        const trimmedName = congregationName.trim();
-        const existing = await congregationService.getByName(trimmedName);
-
-        let congregationId: string;
-        let role: 'user' | 'superadmin';
-
-        if (existing) {
-          congregationId = existing.id;
-          role = 'user';
-        } else {
-          const newCongregation = await congregationService.create({
-            name: trimmedName,
-            createdBy: user.uid,
-            createdAt: Date.now(),
-          });
-          congregationId = newCongregation.id;
-          role = 'superadmin';
-        }
+        const role = 'user';
 
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           email,
           displayName,
           role,
-          congregationId,
           createdAt: new Date(),
         });
 
         await AsyncStorage.setItem(
           `user/${user.uid}`,
           JSON.stringify({
-            data: { uid: user.uid, email, displayName, role, congregationId },
+            data: { uid: user.uid, email, displayName, role },
             timestamp: Date.now(),
           })
         );
 
         mutate(`user/${user.uid}`);
-        Alert.alert(
-          'Éxito',
-          existing
-            ? `Cuenta creada, te uniste a "${trimmedName}"`
-            : `Cuenta creada, fundaste la congregación "${trimmedName}" y eres su superadmin`
-        );
+        Alert.alert('Éxito', 'Cuenta creada correctamente');
       } catch (error: any) {
         console.error('Error al crear cuenta:', error);
 
@@ -135,6 +111,27 @@ export const useUser = () => {
       }
     },
     []
+  );
+
+  // 🔹 Elegir congregación (solo se puede la primera vez; luego las reglas la bloquean)
+  const selectCongregation = useCallback(
+    async (congregationId: string) => {
+      if (!uid) throw new Error('No hay usuario autenticado');
+
+      const ref = doc(db, 'users', uid);
+      const before = await getDoc(ref);
+      if (!before.data()?.congregationId) {
+        await updateDoc(ref, { congregationId });
+      }
+
+      const fresh = (await getDoc(ref)).data();
+      await AsyncStorage.setItem(
+        `user/${uid}`,
+        JSON.stringify({ data: { uid, ...fresh }, timestamp: Date.now() })
+      );
+      await mutate(`user/${uid}`);
+    },
+    [uid]
   );
 
   // 🔹 Inicio de sesión con rol
@@ -258,6 +255,7 @@ export const useUser = () => {
   return {
     userData,
     registerUser,
+    selectCongregation,
     loginUser,
     updateUser,
     resetPassword,

@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '~/hooks/useUser';
 import { useTheme } from '~/context/ThemeContext';
@@ -9,6 +9,10 @@ export default function TabsLayout() {
 
   if (loading || isFetching || !userData || !userData.role) {
     return null;
+  }
+
+  if (!userData.congregationId) {
+    return <Redirect href="/select-congregation" />;
   }
 
   const isAdmin = userData.role === 'admin' || userData.role === 'superadmin';

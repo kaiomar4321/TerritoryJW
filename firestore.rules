@@ -26,49 +26,81 @@ service cloud.firestore {
       return isSignedIn() && data.congregationId == myCongregationId();
     }
 
+    // --- Ventana de gracia mientras se actualizan apps viejas (sin congregationId) ---
+    // Quitar esto (y los "|| duringGracePeriod()..." que lo usan) una vez que
+    // todos hayan actualizado. Ajusta la fecha según lo que necesites.
+    function duringGracePeriod() {
+      return request.time < timestamp.date(2026, 10, 31);
+    }
+
+    // Documentos de tu congregación, o (solo en la ventana de gracia) creados
+    // por una app vieja y por eso sin congregationId todavía.
+    function inMyCongregationOrLegacy(data) {
+      return inMyCongregation(data) ||
+        (duringGracePeriod() && !('congregationId' in data));
+    }
+
     match /territories/{territoryId} {
-      allow read: if inMyCongregation(resource.data);
-      allow create, update: if isAdmin() && inMyCongregation(request.resource.data);
-      allow delete: if isSuperAdmin() && inMyCongregation(resource.data);
+      allow get: if inMyCongregationOrLegacy(resource.data);
+      // list sin filtro (apps viejas) solo se permite temporalmente
+      allow list: if inMyCongregation(resource.data) || duringGracePeriod();
+
+      allow create: if isAdmin() && inMyCongregationOrLegacy(request.resource.data);
+
+      // Admin+ puede editar cualquier campo. Cualquier usuario de la
+      // congregación puede "registrar visita" (solo esos campos).
+      allow update: if inMyCongregationOrLegacy(resource.data) && (
+        isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['visitStartDate', 'visitEndDate', 'note', 'couples', 'hours', 'lastModified', 'synced'])
+      );
+
+      allow delete: if isAdmin() && inMyCongregationOrLegacy(resource.data);
     }
 
     match /groups/{groupId} {
-      allow read: if inMyCongregation(resource.data);
-      allow create, update: if isAdmin() && inMyCongregation(request.resource.data);
-      allow delete: if isSuperAdmin() && inMyCongregation(resource.data);
+      allow get: if inMyCongregationOrLegacy(resource.data);
+      allow list: if inMyCongregation(resource.data) || duringGracePeriod();
+
+      allow create, update: if isAdmin() && inMyCongregationOrLegacy(request.resource.data);
+
+      allow delete: if isAdmin() && inMyCongregationOrLegacy(resource.data);
     }
 
     match /avoidHouses/{houseId} {
-      allow read: if inMyCongregation(resource.data);
-      allow create: if isSignedIn() && inMyCongregation(request.resource.data);
-      allow update, delete: if inMyCongregation(resource.data) &&
+      allow get: if inMyCongregationOrLegacy(resource.data);
+      allow list: if inMyCongregation(resource.data) || duringGracePeriod();
+
+      allow create: if isSignedIn() && inMyCongregationOrLegacy(request.resource.data);
+
+      allow update, delete: if inMyCongregationOrLegacy(resource.data) &&
         (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
     match /users/{userId} {
       // Leer: uno mismo, o admin+ de tu misma congregación
-      allow read: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         request.auth.uid == userId ||
         (isAdmin() && resource.data.congregationId == myCongregationId())
       );
+      allow list: if isAdmin() &&
+        (resource.data.congregationId == myCongregationId() || duringGracePeriod());
 
-      // Crear tu propio doc al registrarte:
-      // - unirte a una congregación existente -> siempre role 'user'
-      // - fundar una congregación nueva (tú la creaste) -> role 'superadmin'
-      allow create: if isSignedIn() && request.auth.uid == userId && (
-        request.resource.data.role == 'user' ||
-        (request.resource.data.role == 'superadmin' &&
-         get(/databases/$(database)/documents/congregations/$(request.resource.data.congregationId)).data.createdBy == request.auth.uid)
-      );
+      // Crear tu propio doc al registrarte: siempre role 'user'
+      // (los superadmin de cada congregación se asignan con scripts/add-congregation.js)
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.role == 'user';
 
-      // Actualizar tus propios datos, sin tocar role ni congregationId
+      // Actualizar tus propios datos sin tocar el role. La congregación solo
+      // se puede fijar UNA vez (si aún no tienes) y debe ser una que exista.
       allow update: if isSignedIn() && request.auth.uid == userId &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.congregationId == resource.data.congregationId;
+        request.resource.data.role == resource.data.role && (
+          request.resource.data.get('congregationId', null) == resource.data.get('congregationId', null) ||
+          (!('congregationId' in resource.data) &&
+           exists(/databases/$(database)/documents/congregations/$(request.resource.data.congregationId)))
+        );
 
-      // Cambiar el role de OTRO usuario de tu misma congregación:
-      // admin solo puede promover a 'admin'; superadmin cualquier cosa.
-      // congregationId nunca cambia en este camino.
+      // Cambiar el role de OTRO usuario de tu misma congregación
       allow update: if isSignedIn() && request.auth.uid != userId &&
         resource.data.congregationId == myCongregationId() &&
         request.resource.data.congregationId == resource.data.congregationId && (
@@ -80,14 +112,9 @@ service cloud.firestore {
     }
 
     match /congregations/{congId} {
-      // Cualquiera logueado puede leer (necesario para buscar por nombre al registrarse/unirse)
+      // Solo lectura desde la app; las congregaciones se crean con scripts/add-congregation.js
       allow read: if isSignedIn();
-
-      // Fundar una congregación nueva: cualquiera logueado, siempre como su creador
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-
-      // Editar/borrar: solo el superadmin de esa misma congregación
-      allow update, delete: if isSuperAdmin() && congId == myCongregationId();
+      allow write: if false;
     }
   }
 }
