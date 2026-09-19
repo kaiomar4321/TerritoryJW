@@ -118,13 +118,13 @@ const TerritoryEditForm: React.FC<Props> = ({ form, onChange, onSave, onCancel, 
             from={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 15, stiffness: 300 }}
-            className="w-full max-w-sm rounded-2xl bg-white p-6">
+            className="w-full max-w-sm rounded-2xl bg-white p-6 dark:bg-black2">
             <View className="mb-4 items-center">
-              <View className="mb-3 rounded-full bg-red-100 p-3">
+              <View className="mb-3 rounded-full bg-red-100 p-3 dark:bg-red-900/30">
                 <Ionicons name="trash-outline" size={32} color="#dc2626" />
               </View>
-              <ThemedText className="mb-2 text-xl font-bold text-gray-900">¿Eliminar territorio?</ThemedText>
-              <ThemedText className="text-center leading-5 text-gray-600">
+              <ThemedText className="mb-2 text-xl font-bold">¿Eliminar territorio?</ThemedText>
+              <ThemedText className="text-center leading-5 text-gray-600 dark:text-gray-400">
                 Esta acción no se puede deshacer. El territorio será eliminado permanentemente.
               </ThemedText>
             </View>
