@@ -1,7 +1,8 @@
 // services/firestoreFetcher.ts
-import { getDocs, collection } from "firebase/firestore";
+import { getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { houseService } from "./houseService";
+import { getCurrentCongregationId } from "./session";
 
 export const firestoreFetcher = async (key: string) => {
   // Si la key ya incluye el prefijo, úsala directamente
@@ -12,7 +13,9 @@ export const firestoreFetcher = async (key: string) => {
 
 // Fetcher específico para territorios con validación
 export const territoriesFetcher = async () => {
-  const snap = await getDocs(collection(db, 'territories'));
+  const congregationId = await getCurrentCongregationId();
+  const q = query(collection(db, 'territories'), where('congregationId', '==', congregationId));
+  const snap = await getDocs(q);
   const territories: any[] = [];
   
   snap.docs.forEach((doc) => {

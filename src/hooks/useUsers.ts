@@ -1,10 +1,18 @@
 import { useEffect, useCallback } from 'react';
 import { useOfflineSWR } from '~/hooks/useOfflineSWR';
-import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/User';
+import { getCurrentCongregationId } from '~/services/session';
 const USERS_KEY = 'users';
 const db = getFirestore();
+
+const fetchCongregationUsers = async (): Promise<User[]> => {
+  const congregationId = await getCurrentCongregationId();
+  const q = query(collection(db, 'users'), where('congregationId', '==', congregationId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as User[];
+};
 
 /**
  * Hook para obtener y gestionar todos los usuarios del sistema
@@ -12,8 +20,7 @@ const db = getFirestore();
  */
 export const useUsers = () => {
   const { data: users = [], isLoading, error, mutate } = useOfflineSWR<User[]>(USERS_KEY, async () => {
-    const snapshot = await getDocs(collection(db, 'users'));
-    const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as User[];
+    const list = await fetchCongregationUsers();
 
     // ✅ Cache local
     await AsyncStorage.setItem(
@@ -34,8 +41,7 @@ export const useUsers = () => {
       }
 
       // luego sincroniza con Firestore
-      const snapshot = await getDocs(collection(db, 'users'));
-      const onlineUsers = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as User[];
+      const onlineUsers = await fetchCongregationUsers();
       await AsyncStorage.setItem(
         USERS_KEY,
         JSON.stringify({ data: onlineUsers, timestamp: Date.now() })
