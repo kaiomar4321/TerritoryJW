@@ -48,7 +48,14 @@ export default function SelectCongregation() {
                 className={`flex-row items-center justify-between rounded-md border border-gray-300 p-4 dark:border-gray-600 ${
                   savingId !== null && savingId !== c.id ? 'opacity-50' : ''
                 }`}>
-                <ThemedText className="text-lg font-semibold">{c.name}</ThemedText>
+                <View className="flex-1 pr-3">
+                  <ThemedText className="text-lg font-semibold">{c.name}</ThemedText>
+                  {(c.city || c.state) && (
+                    <Text className="text-sm text-gray-600 dark:text-gray-400">
+                      {[c.city, c.state].filter(Boolean).join(', ')}
+                    </Text>
+                  )}
+                </View>
                 {savingId === c.id ? (
                   <ActivityIndicator color="#925ffa" />
                 ) : (

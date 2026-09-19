@@ -76,17 +76,16 @@ export default function TabsLayout() {
         }}
       />
 
-      {isAdmin && (
-        <Tabs.Screen
-          name="admin/report"
-          options={{
-            title: 'Reporte',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="bar-chart-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="admin/report"
+        options={{
+          title: 'Reporte',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bar-chart-outline" size={size} color={color} />
+          ),
+        }}
+      />
 
       <Tabs.Screen
         name="admin/group/[id]"

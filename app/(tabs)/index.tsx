@@ -7,6 +7,7 @@ import { useLocation } from '~/hooks/useLocation';
 import { useTerritory } from '~/hooks/useTerritory';
 import { useHouses } from '~/hooks/useHouses';
 import { usePermissions } from '~/hooks/usePermissions';
+import { useMyCongregation } from '~/hooks/useMyCongregation';
 import { getPolygonCenter } from '~/utils/mapUtils';
 import { Territory } from '~/types/Territory';
 import { House } from '~/services/houseService';
@@ -58,6 +59,16 @@ export default function TabIndex() {
   } = useHouses(selectedTerritory?.id ?? null);
 
   const { isAdmin, isLoading } = usePermissions();
+  const { congregation, isLoading: isCongregationLoading } = useMyCongregation();
+
+  // Centro del mapa: el de la congregación; si no tiene coordenadas, el del .env
+  const initialRegion = useMemo(() => {
+    const { latitude, longitude } = congregation ?? {};
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      return { ...INITIAL_REGION, latitude, longitude };
+    }
+    return INITIAL_REGION;
+  }, [congregation]);
 
   // 🔍 Calcular territorios visibles en el viewport
   const territoriesInViewport = useMemo(() => {
@@ -91,7 +102,7 @@ export default function TabIndex() {
     }
   }, [territoryId, filteredTerritories]);
 
-  if (isLoading) {
+  if (isLoading || isCongregationLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#0000ff" />
@@ -108,7 +119,7 @@ export default function TabIndex() {
           style={{ flex: 1 }}
           removeClippedSubviews={true}
           
-          initialRegion={INITIAL_REGION}
+          initialRegion={initialRegion}
           onRegionChangeComplete={handleRegionChange}
           onPress={(e) => {
             if (!isAddingHouse) {

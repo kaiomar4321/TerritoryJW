@@ -34,19 +34,23 @@ export const useUsers = () => {
   // Cargar primero desde cache local y luego sincronizar online
   useEffect(() => {
     (async () => {
-      const cache = await AsyncStorage.getItem(USERS_KEY);
-      if (cache) {
-        const parsed = JSON.parse(cache);
-        mutate(parsed.data, false);
-      }
+      try {
+        const cache = await AsyncStorage.getItem(USERS_KEY);
+        if (cache) {
+          const parsed = JSON.parse(cache);
+          mutate(parsed.data, false);
+        }
 
-      // luego sincroniza con Firestore
-      const onlineUsers = await fetchCongregationUsers();
-      await AsyncStorage.setItem(
-        USERS_KEY,
-        JSON.stringify({ data: onlineUsers, timestamp: Date.now() })
-      );
-      mutate(onlineUsers, false);
+        // luego sincroniza con Firestore
+        const onlineUsers = await fetchCongregationUsers();
+        await AsyncStorage.setItem(
+          USERS_KEY,
+          JSON.stringify({ data: onlineUsers, timestamp: Date.now() })
+        );
+        mutate(onlineUsers, false);
+      } catch (err) {
+        console.warn('No se pudo sincronizar usuarios:', err);
+      }
     })();
   }, []);
 
