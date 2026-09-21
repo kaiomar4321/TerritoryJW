@@ -8,6 +8,8 @@ import { useTerritory } from '~/hooks/useTerritory';
 import { useHouses } from '~/hooks/useHouses';
 import { usePermissions } from '~/hooks/usePermissions';
 import { useMyCongregation } from '~/hooks/useMyCongregation';
+import { useTheme } from '~/context/ThemeContext';
+import { DARK_MAP_STYLE } from '~/utils/mapStyles';
 import { getPolygonCenter } from '~/utils/mapUtils';
 import { Territory } from '~/types/Territory';
 import { House } from '~/services/houseService';
@@ -29,6 +31,7 @@ const INITIAL_REGION = {
 export default function TabIndex() {
   const { location, getLocation, focusOnTerritory, mapRef, subscribeRegion, getRegion, handleRegionChange } = useLocation();
   const { territoryId } = useLocalSearchParams();
+  const { isDark } = useTheme();
   const {
     filteredTerritories,
     isEditMode,
@@ -111,6 +114,8 @@ export default function TabIndex() {
         <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
+          userInterfaceStyle={isDark ? 'dark' : 'light'}
+          customMapStyle={isDark ? DARK_MAP_STYLE : []}
           style={{ flex: 1 }}
           removeClippedSubviews={true}
           
