@@ -1,7 +1,8 @@
-version: "2"
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+version: 2
 language: "es-ES"
 reviews:
-  profile: "chill" # Opciones: chill, assertive
+  profile: "chill"
   auto_review:
     enabled: true
     drafts: false
