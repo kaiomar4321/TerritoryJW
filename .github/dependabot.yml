@@ -1,16 +1,19 @@
 version: 2
 updates:
-  # Ejemplo para proyecto Node.js / npm
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Ignorar paquetes del core de Expo/React Native para evitar romper la compatibilidad del SDK
+    ignore:
+      - dependency-name: "expo*"
+      - dependency-name: "react-native*"
+      - dependency-name: "react-native-*"
     labels:
       - "dependencies"
       - "type: chore"
 
-  # Ejemplo para GitHub Actions (mantiene tus workflows actualizados)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
