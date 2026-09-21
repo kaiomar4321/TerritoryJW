@@ -16,6 +16,8 @@ module.exports = {
     web: {
       favicon: './assets/favicon.png',
       bundler: 'metro',
+      // SPA: un solo index.html (la app solo habla con Firebase desde el navegador)
+      output: 'single',
     },
     experiments: {
       tsconfigPaths: true,
