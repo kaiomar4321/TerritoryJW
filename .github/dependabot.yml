@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Ejemplo para proyecto Node.js / npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "type: chore"
+
+  # Ejemplo para GitHub Actions (mantiene tus workflows actualizados)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "ci/cd"
