@@ -1,0 +1,14 @@
+version: "2"
+language: "es-ES"
+reviews:
+  profile: "chill" # Opciones: chill, assertive
+  auto_review:
+    enabled: true
+    drafts: false
+  tools:
+    ast-grep:
+      enabled: true
+    shellcheck:
+      enabled: true
+chat:
+  auto_reply: true
